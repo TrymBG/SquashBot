@@ -18,4 +18,4 @@ export const config = {
   
 };
 
- console.log("Config loaded, guild: ", config.guildId);
+ 
