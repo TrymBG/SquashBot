@@ -1,5 +1,6 @@
 // /result: log a match against an opponent with a score.
-import { SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { isValidScore } from "../validation.js";
 
 export const data = new SlashCommandBuilder()
   .setName("result")
@@ -45,6 +46,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const format = interaction.options.getString("format", true);
   const myGames = interaction.options.getInteger("my_games", true);
   const theirGames = interaction.options.getInteger("their_games", true);
+
+  if (opponent.id === reporter.id) {
+    await interaction.reply({ content: "You can't play against yourself.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
+  if (!isValidScore(format, myGames, theirGames)) {
+    await interaction.reply({
+      content: `${myGames}-${theirGames} is not a valid score for ${format}.`,
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
 
   await interaction.reply(
     `${reporter.username} vs ${opponent.username} (${format}): ${myGames}-${theirGames}`,
