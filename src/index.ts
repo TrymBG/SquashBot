@@ -3,6 +3,7 @@ import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { config } from "./config.js";
 import * as ping from "./commands/ping.js";
 import * as result from "./commands/result.js";
+import { initSchema } from "./db.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -29,4 +30,5 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+initSchema();
 client.login(config.token);
