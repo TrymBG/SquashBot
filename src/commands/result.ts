@@ -1,7 +1,7 @@
 // /result: log a match against an opponent with a score.
 import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { isValidScore } from "../validation.js";
-import { recordMatch } from "../services/matchService.js";
+import { recordMatch, type RatingChange } from "../services/matchService.js";
 
 export const data = new SlashCommandBuilder()
   .setName("result")
@@ -66,7 +66,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     return;
   }
 
-  const matchId = recordMatch({
+  const recorded = recordMatch({
     reporterId: reporter.id,
     reporterName: reporter.displayName,
     opponentId: opponent.id,
@@ -80,6 +80,18 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const score = `${Math.max(myGames, theirGames)}-${Math.min(myGames, theirGames)}`;
 
   await interaction.reply(
-    `Match #${matchId} saved: **${winner.displayName}** beat ${loser.displayName} ${score} (${format})`,
+    [
+      `Match #${recorded.matchId}: **${winner.displayName}** beat ${loser.displayName} ${score} (${format})`,
+      `${winner.displayName}: ${formatChange(recorded.winner)}`,
+      `${loser.displayName}: ${formatChange(recorded.loser)}`,
+    ].join("\n"),
   );
+}
+
+// "1000 → 1019 (+19)". Ratings are stored as decimals and only rounded here, for display.
+function formatChange(change: RatingChange): string {
+  const before = Math.round(change.before);
+  const after = Math.round(change.after);
+  const diff = after - before;
+  return `${before} → ${after} (${diff >= 0 ? "+" : ""}${diff})`;
 }

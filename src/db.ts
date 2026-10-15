@@ -11,6 +11,7 @@ export function initSchema(): void {
     CREATE TABLE IF NOT EXISTS players (
       id           TEXT PRIMARY KEY,
       display_name TEXT NOT NULL,
+      rating       REAL NOT NULL,
       created_at   TEXT NOT NULL
     );
 
@@ -24,16 +25,60 @@ export function initSchema(): void {
       reported_by  TEXT NOT NULL REFERENCES players(id),
       played_at    TEXT NOT NULL
     );
+
+    -- One row per player per match. Deleting a match deletes its rows too (used by /undo).
+    CREATE TABLE IF NOT EXISTS rating_history (
+      match_id      INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+      player_id     TEXT NOT NULL REFERENCES players(id),
+      rating_before REAL NOT NULL,
+      rating_after  REAL NOT NULL,
+      PRIMARY KEY (match_id, player_id)
+    );
   `);
 }
 
-// Creates the player, or updates their display name if they already exist.
-export function upsertPlayer(id: string, displayName: string): void {
+// Runs fn inside a transaction: either everything in it is saved, or nothing is.
+export function transaction<T>(fn: () => T): T {
+  db.exec("BEGIN");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+// Creates the player with a starting rating, or updates their display name if they already exist.
+export function upsertPlayer(id: string, displayName: string, startingRating: number): void {
   db.prepare(`
-    INSERT INTO players (id, display_name, created_at)
-    VALUES (?, ?, ?)
+    INSERT INTO players (id, display_name, rating, created_at)
+    VALUES (?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name
-  `).run(id, displayName, new Date().toISOString());
+  `).run(id, displayName, startingRating, new Date().toISOString());
+}
+
+export interface PlayerRow {
+  rating: number;
+  matchesPlayed: number;
+}
+
+// Current rating and number of matches played, or undefined if the player doesn't exist.
+export function getPlayer(id: string): PlayerRow | undefined {
+  const row = db.prepare(`
+    SELECT
+      rating,
+      (SELECT COUNT(*) FROM matches WHERE winner_id = players.id OR loser_id = players.id) AS matches_played
+    FROM players
+    WHERE id = ?
+  `).get(id) as { rating: number; matches_played: number } | undefined;
+
+  return row && { rating: row.rating, matchesPlayed: row.matches_played };
+}
+
+export function updatePlayerRating(id: string, rating: number): void {
+  db.prepare("UPDATE players SET rating = ? WHERE id = ?").run(rating, id);
 }
 
 export interface NewMatch {
@@ -53,4 +98,11 @@ export function insertMatch(match: NewMatch): number {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(match.winnerId, match.loserId, match.winnerGames, match.loserGames, match.format, match.reportedBy, match.playedAt);
   return Number(result.lastInsertRowid);
+}
+
+export function insertRatingHistory(matchId: number, playerId: string, ratingBefore: number, ratingAfter: number): void {
+  db.prepare(`
+    INSERT INTO rating_history (match_id, player_id, rating_before, rating_after)
+    VALUES (?, ?, ?, ?)
+  `).run(matchId, playerId, ratingBefore, ratingAfter);
 }
