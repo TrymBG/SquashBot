@@ -100,6 +100,75 @@ export function insertMatch(match: NewMatch): number {
   return Number(result.lastInsertRowid);
 }
 
+export interface MatchRow {
+  id: number;
+  winnerId: string;
+  winnerName: string;
+  loserId: string;
+  loserName: string;
+  winnerGames: number;
+  loserGames: number;
+  format: string;
+  reportedBy: string;
+  playedAt: string;
+}
+
+// The most recently logged match (highest id), with both players' names.
+export function getLatestMatch(): MatchRow | undefined {
+  const row = db.prepare(`
+    SELECT
+      m.id, m.winner_id, w.display_name AS winner_name, m.loser_id, l.display_name AS loser_name,
+      m.winner_games, m.loser_games, m.format, m.reported_by, m.played_at
+    FROM matches m
+    JOIN players w ON w.id = m.winner_id
+    JOIN players l ON l.id = m.loser_id
+    ORDER BY m.id DESC
+    LIMIT 1
+  `).get() as
+    | {
+        id: number;
+        winner_id: string;
+        winner_name: string;
+        loser_id: string;
+        loser_name: string;
+        winner_games: number;
+        loser_games: number;
+        format: string;
+        reported_by: string;
+        played_at: string;
+      }
+    | undefined;
+
+  return (
+    row && {
+      id: row.id,
+      winnerId: row.winner_id,
+      winnerName: row.winner_name,
+      loserId: row.loser_id,
+      loserName: row.loser_name,
+      winnerGames: row.winner_games,
+      loserGames: row.loser_games,
+      format: row.format,
+      reportedBy: row.reported_by,
+      playedAt: row.played_at,
+    }
+  );
+}
+
+// Each player's rating from just before the given match.
+export function getRatingsBefore(matchId: number): { playerId: string; ratingBefore: number }[] {
+  const rows = db.prepare(`
+    SELECT player_id, rating_before FROM rating_history WHERE match_id = ?
+  `).all(matchId) as { player_id: string; rating_before: number }[];
+
+  return rows.map((row) => ({ playerId: row.player_id, ratingBefore: row.rating_before }));
+}
+
+// Deletes a match. Its rating_history rows are removed automatically (ON DELETE CASCADE).
+export function deleteMatch(matchId: number): void {
+  db.prepare("DELETE FROM matches WHERE id = ?").run(matchId);
+}
+
 export interface LeaderboardRow {
   id: string;
   displayName: string;

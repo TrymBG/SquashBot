@@ -2,5 +2,6 @@
 import * as leaderboard from "./leaderboard.js";
 import * as ping from "./ping.js";
 import * as result from "./result.js";
+import * as undo from "./undo.js";
 
-export const commands = [ping, result, leaderboard];
+export const commands = [ping, result, leaderboard, undo];

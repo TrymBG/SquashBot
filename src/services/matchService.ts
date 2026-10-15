@@ -1,14 +1,20 @@
 // Business logic for matches: recordMatch, undoLastMatch. Used by commands (and later the website API).
 import {
+  deleteMatch,
+  getLatestMatch as queryLatestMatch,
   getPlayer,
+  getRatingsBefore,
   insertMatch,
   insertRatingHistory,
   transaction,
   updatePlayerRating,
   upsertPlayer,
+  type MatchRow,
   type PlayerRow,
 } from "../db.js";
 import { calculateNewRatings, STARTING_RATING } from "../elo.js";
+
+export type { MatchRow };
 
 // A match as the reporter sees it: "I played X and the score was my_games-their_games".
 export interface MatchReport {
@@ -76,6 +82,38 @@ export function recordMatch(report: MatchReport): RecordedMatch {
       winner: { playerId: winnerId, before: winner.rating, after: winnerRating },
       loser: { playerId: loserId, before: loser.rating, after: loserRating },
     };
+  });
+}
+
+export function getLatestMatch(): MatchRow | undefined {
+  return queryLatestMatch();
+}
+
+// Who may undo a match. For now anyone can; change this to e.g.
+// `userId === match.winnerId || userId === match.loserId` to restrict it to the two players.
+export function canUndo(_match: MatchRow, _userId: string): boolean {
+  return true;
+}
+
+export type UndoResult = { ok: true; match: MatchRow } | { ok: false; reason: string };
+
+// Removes the match and restores both players' ratings, but only if it is still the most recent match.
+export function undoMatch(matchId: number, requesterId: string): UndoResult {
+  return transaction((): UndoResult => {
+    const latest = queryLatestMatch();
+    if (!latest || latest.id !== matchId) {
+      return { ok: false, reason: "That match is no longer the most recent one (it may already have been undone)." };
+    }
+    if (!canUndo(latest, requesterId)) {
+      return { ok: false, reason: "You are not allowed to undo this match." };
+    }
+
+    for (const { playerId, ratingBefore } of getRatingsBefore(matchId)) {
+      updatePlayerRating(playerId, ratingBefore);
+    }
+    deleteMatch(matchId);
+
+    return { ok: true, match: latest };
   });
 }
 
