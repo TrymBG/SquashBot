@@ -1,2 +1,8 @@
 // Business logic for reading data: getLeaderboard, getPlayerStats, getHeadToHead.
-// Step 3-4
+import { getLeaderboard as queryLeaderboard, type LeaderboardRow } from "../db.js";
+
+const LEADERBOARD_SIZE = 20;
+
+export function getLeaderboard(): LeaderboardRow[] {
+  return queryLeaderboard(LEADERBOARD_SIZE);
+}

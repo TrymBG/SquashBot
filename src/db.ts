@@ -100,6 +100,38 @@ export function insertMatch(match: NewMatch): number {
   return Number(result.lastInsertRowid);
 }
 
+export interface LeaderboardRow {
+  id: string;
+  displayName: string;
+  rating: number;
+  wins: number;
+  losses: number;
+}
+
+// Players with at least one match, highest rating first.
+export function getLeaderboard(limit: number): LeaderboardRow[] {
+  const rows = db.prepare(`
+    SELECT
+      p.id,
+      p.display_name,
+      p.rating,
+      (SELECT COUNT(*) FROM matches WHERE winner_id = p.id) AS wins,
+      (SELECT COUNT(*) FROM matches WHERE loser_id = p.id) AS losses
+    FROM players p
+    WHERE EXISTS (SELECT 1 FROM matches WHERE winner_id = p.id OR loser_id = p.id)
+    ORDER BY p.rating DESC
+    LIMIT ?
+  `).all(limit) as { id: string; display_name: string; rating: number; wins: number; losses: number }[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    displayName: row.display_name,
+    rating: row.rating,
+    wins: row.wins,
+    losses: row.losses,
+  }));
+}
+
 export function insertRatingHistory(matchId: number, playerId: string, ratingBefore: number, ratingAfter: number): void {
   db.prepare(`
     INSERT INTO rating_history (match_id, player_id, rating_before, rating_after)

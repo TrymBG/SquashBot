@@ -1,8 +1,7 @@
 // Entry point: creates the Discord client, logs in, and routes slash commands to their handler.
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { config } from "./config.js";
-import * as ping from "./commands/ping.js";
-import * as result from "./commands/result.js";
+import { commands } from "./commands/index.js";
 import { initSchema } from "./db.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
@@ -11,15 +10,12 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`Logged in as ${readyClient.user.tag}`);
 });
 
-const commands = new Map([
-  [ping.data.name, ping],
-  [result.data.name, result],
-]);
+const commandsByName = new Map(commands.map((command) => [command.data.name, command]));
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  const command = commands.get(interaction.commandName);
+  const command = commandsByName.get(interaction.commandName);
   if (!command) return;
 
   try {
