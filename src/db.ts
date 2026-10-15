@@ -26,3 +26,31 @@ export function initSchema(): void {
     );
   `);
 }
+
+// Creates the player, or updates their display name if they already exist.
+export function upsertPlayer(id: string, displayName: string): void {
+  db.prepare(`
+    INSERT INTO players (id, display_name, created_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name
+  `).run(id, displayName, new Date().toISOString());
+}
+
+export interface NewMatch {
+  winnerId: string;
+  loserId: string;
+  winnerGames: number;
+  loserGames: number;
+  format: string;
+  reportedBy: string;
+  playedAt: string;
+}
+
+// Saves a match and returns its id.
+export function insertMatch(match: NewMatch): number {
+  const result = db.prepare(`
+    INSERT INTO matches (winner_id, loser_id, winner_games, loser_games, format, reported_by, played_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(match.winnerId, match.loserId, match.winnerGames, match.loserGames, match.format, match.reportedBy, match.playedAt);
+  return Number(result.lastInsertRowid);
+}

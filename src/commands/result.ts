@@ -1,6 +1,7 @@
 // /result: log a match against an opponent with a score.
 import { MessageFlags, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
 import { isValidScore } from "../validation.js";
+import { recordMatch } from "../services/matchService.js";
 
 export const data = new SlashCommandBuilder()
   .setName("result")
@@ -52,6 +53,11 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     return;
   }
 
+  if (opponent.bot) {
+    await interaction.reply({ content: "You can't log a match against a bot.", flags: MessageFlags.Ephemeral });
+    return;
+  }
+
   if (!isValidScore(format, myGames, theirGames)) {
     await interaction.reply({
       content: `${myGames}-${theirGames} is not a valid score for ${format}.`,
@@ -60,7 +66,20 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     return;
   }
 
+  const matchId = recordMatch({
+    reporterId: reporter.id,
+    reporterName: reporter.displayName,
+    opponentId: opponent.id,
+    opponentName: opponent.displayName,
+    format,
+    reporterGames: myGames,
+    opponentGames: theirGames,
+  });
+
+  const [winner, loser] = myGames > theirGames ? [reporter, opponent] : [opponent, reporter];
+  const score = `${Math.max(myGames, theirGames)}-${Math.min(myGames, theirGames)}`;
+
   await interaction.reply(
-    `${reporter.username} vs ${opponent.username} (${format}): ${myGames}-${theirGames}`,
+    `Match #${matchId} saved: **${winner.displayName}** beat ${loser.displayName} ${score} (${format})`,
   );
 }
