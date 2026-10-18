@@ -54,6 +54,26 @@ export interface NewRatings {
   loserRating: number;
 }
 
+// A stored match, as needed to replay it.
+export interface ReplayMatch extends MatchResult {
+  id: number;
+  winnerId: string;
+  loserId: string;
+}
+
+// One player's rating change in one match (becomes one row in rating_history).
+export interface ReplayEntry {
+  matchId: number;
+  playerId: string;
+  ratingBefore: number;
+  ratingAfter: number;
+}
+
+export interface ReplayResult {
+  history: ReplayEntry[];
+  players: Map<string, PlayerState>; // final rating and match count per player
+}
+
 export function calculateNewRatings(winner: PlayerState, loser: PlayerState, match: MatchResult): NewRatings {
   const matchMultiplier = formatMultiplier(match.format) * marginFactor(match.winnerGames, match.loserGames);
 
@@ -67,4 +87,27 @@ export function calculateNewRatings(winner: PlayerState, loser: PlayerState, mat
     winnerRating: winner.rating + winnerK * (1 - winnerExpected),
     loserRating: loser.rating + loserK * (0 - loserExpected),
   };
+}
+
+// Recalculates every rating from scratch by replaying the matches in order (oldest first).
+// Everyone starts at STARTING_RATING with 0 matches. Used by /undo, and later if the rating rules change.
+export function replayMatches(matches: ReplayMatch[]): ReplayResult {
+  const players = new Map<string, PlayerState>();
+  const history: ReplayEntry[] = [];
+
+  for (const match of matches) {
+    // A player we haven't seen yet is new: starting rating, 0 matches.
+    const winner = players.get(match.winnerId) ?? { rating: STARTING_RATING, matchesPlayed: 0 };
+    const loser = players.get(match.loserId) ?? { rating: STARTING_RATING, matchesPlayed: 0 };
+
+    const { winnerRating, loserRating } = calculateNewRatings(winner, loser, match);
+
+    history.push({ matchId: match.id, playerId: match.winnerId, ratingBefore: winner.rating, ratingAfter: winnerRating });
+    history.push({ matchId: match.id, playerId: match.loserId, ratingBefore: loser.rating, ratingAfter: loserRating });
+
+    players.set(match.winnerId, { rating: winnerRating, matchesPlayed: winner.matchesPlayed + 1 });
+    players.set(match.loserId, { rating: loserRating, matchesPlayed: loser.matchesPlayed + 1 });
+  }
+
+  return { history, players };
 }

@@ -1,7 +1,16 @@
 // Unit tests for elo.ts. Run with: npm test
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { baseK, calculateNewRatings, expectedScore, formatMultiplier, marginFactor } from "./elo.js";
+import {
+  baseK,
+  calculateNewRatings,
+  expectedScore,
+  formatMultiplier,
+  marginFactor,
+  replayMatches,
+  STARTING_RATING,
+  type ReplayMatch,
+} from "./elo.js";
 
 // Floating point math is never exact, so compare with a small tolerance.
 function assertClose(actual: number, expected: number, tolerance = 0.01): void {
@@ -94,5 +103,68 @@ describe("calculateNewRatings", () => {
     const bo1 = calculateNewRatings(established, established, { format: "bo1", winnerGames: 1, loserGames: 0 });
     const bo5 = calculateNewRatings(established, established, { format: "bo5", winnerGames: 3, loserGames: 0 });
     assert.ok(bo1.winnerRating < bo5.winnerRating);
+  });
+});
+
+describe("replayMatches", () => {
+  // Small helper so the tests below stay short: "a beat b 3-0 in bo5".
+  function match(id: number, winnerId: string, loserId: string): ReplayMatch {
+    return { id, winnerId, loserId, format: "bo5", winnerGames: 3, loserGames: 0 };
+  }
+
+  it("returns nothing for no matches", () => {
+    const result = replayMatches([]);
+    assert.equal(result.history.length, 0);
+    assert.equal(result.players.size, 0);
+  });
+
+  it("starts new players at the starting rating", () => {
+    const result = replayMatches([match(1, "trym", "ola")]);
+    assert.equal(result.history.length, 2);
+    for (const entry of result.history) {
+      assert.equal(entry.matchId, 1);
+      assert.equal(entry.ratingBefore, STARTING_RATING);
+    }
+  });
+
+  it("gives the same result as calculateNewRatings for a single match", () => {
+    const result = replayMatches([match(1, "trym", "ola")]);
+    const newPlayer = { rating: STARTING_RATING, matchesPlayed: 0 };
+    const expected = calculateNewRatings(newPlayer, newPlayer, match(1, "trym", "ola"));
+
+    assertClose(result.players.get("trym")!.rating, expected.winnerRating);
+    assertClose(result.players.get("ola")!.rating, expected.loserRating);
+  });
+
+  it("uses the rating after one match as the rating before the next", () => {
+    const result = replayMatches([match(1, "trym", "ola"), match(2, "ola", "trym")]);
+    const trymAfterMatch1 = result.history.find((e) => e.matchId === 1 && e.playerId === "trym")!;
+    const trymBeforeMatch2 = result.history.find((e) => e.matchId === 2 && e.playerId === "trym")!;
+    assert.equal(trymBeforeMatch2.ratingBefore, trymAfterMatch1.ratingAfter);
+  });
+
+  it("counts matches played per player", () => {
+    const result = replayMatches([match(1, "trym", "ola"), match(2, "trym", "kari")]);
+    assert.equal(result.players.get("trym")!.matchesPlayed, 2);
+    assert.equal(result.players.get("ola")!.matchesPlayed, 1);
+    assert.equal(result.players.get("kari")!.matchesPlayed, 1);
+  });
+
+  it("switches to the established K-factor after 10 matches", () => {
+    // Trym and Ola play 11 matches against each other, alternating winners.
+    const matches = Array.from({ length: 11 }, (_, i) =>
+      i % 2 === 0 ? match(i + 1, "trym", "ola") : match(i + 1, "ola", "trym"),
+    );
+    const result = replayMatches(matches);
+
+    // Match 11: both have played 10 matches before it, so it must be calculated with K = 32.
+    const trymBefore = result.history.find((e) => e.matchId === 11 && e.playerId === "trym")!;
+    const olaBefore = result.history.find((e) => e.matchId === 11 && e.playerId === "ola")!;
+    const expected = calculateNewRatings(
+      { rating: trymBefore.ratingBefore, matchesPlayed: 10 },
+      { rating: olaBefore.ratingBefore, matchesPlayed: 10 },
+      matches[10]!,
+    );
+    assertClose(trymBefore.ratingAfter, expected.winnerRating);
   });
 });
