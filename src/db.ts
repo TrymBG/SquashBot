@@ -81,6 +81,11 @@ export function updatePlayerRating(id: string, rating: number): void {
   db.prepare("UPDATE players SET rating = ? WHERE id = ?").run(rating, id);
 }
 
+// Sets every player's rating to the same value. No WHERE on purpose: used before a full replay.
+export function resetAllRatings(rating: number): void {
+  db.prepare("UPDATE players SET rating = ?").run(rating);
+}
+
 export interface NewMatch {
   winnerId: string;
   loserId: string;
@@ -155,6 +160,40 @@ export function getLatestMatch(): MatchRow | undefined {
   );
 }
 
+export interface ReplayMatchRow {
+  id: number;
+  winnerId: string;
+  loserId: string;
+  format: string;
+  winnerGames: number;
+  loserGames: number;
+}
+
+// Every match in the order it was logged (oldest first), with just what a replay needs.
+export function getAllMatchesForReplay(): ReplayMatchRow[] {
+  const rows = db.prepare(`
+    SELECT id, winner_id, loser_id, format, winner_games, loser_games
+    FROM matches
+    ORDER BY id ASC
+  `).all() as {
+    id: number;
+    winner_id: string;
+    loser_id: string;
+    format: string;
+    winner_games: number;
+    loser_games: number;
+  }[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    winnerId: row.winner_id,
+    loserId: row.loser_id,
+    format: row.format,
+    winnerGames: row.winner_games,
+    loserGames: row.loser_games,
+  }));
+}
+
 // Each player's rating from just before the given match.
 export function getRatingsBefore(matchId: number): { playerId: string; ratingBefore: number }[] {
   const rows = db.prepare(`
@@ -167,6 +206,11 @@ export function getRatingsBefore(matchId: number): { playerId: string; ratingBef
 // Deletes a match. Its rating_history rows are removed automatically (ON DELETE CASCADE).
 export function deleteMatch(matchId: number): void {
   db.prepare("DELETE FROM matches WHERE id = ?").run(matchId);
+}
+
+// Deletes every rating_history row. No WHERE on purpose: a replay rewrites the whole history.
+export function deleteAllRatingHistory(): void {
+  db.prepare("DELETE FROM rating_history").run();
 }
 
 export interface LeaderboardRow {
