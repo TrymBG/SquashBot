@@ -51,7 +51,7 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] Delete the old `ROADMAP.md` (replaced by this file)
 - [x] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
 - [ ] Hook: run `npm run typecheck` after every file edit
-- [ ] Permission allowlist in `.claude/settings.json` (`npm test`, `npm run typecheck`, `git status/diff/log`)
+- [x] Permission allowlist in `.claude/settings.json` (`npm test`, `npm run typecheck`, `git status/diff/log`)
 
 ## Bot: fixes and cleanup
 - [x] `index.ts` error handler: use `followUp` when the interaction was already replied to (today a second `reply` throws)
