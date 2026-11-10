@@ -19,12 +19,12 @@ because the website builds the same service functions (`getPlayerStats`, `getHea
   - [x] a player whose only match is undone → back to 1000
   - [x] undo after several matches → same ratings as if the match was never logged
 - [x] Rewrite `undoMatch` with the replay, and delete `getRatingsBefore`
-- [ ] Commit: "Recompute all ratings on undo instead of restoring rating_before"
+- [x] Commit (`501dbe7`, together with step 2)
 
 ## 2. Next: prepare data for the website
 - [x] Store the Discord avatar URL in `players`, refreshed like `display_name` (with a migration for existing databases)
 - [x] Seed script: 120 fake matches between 6 players over 90 days through `recordMatch`, into `seed.db` (never `squash.db`)
-- [ ] Commit: "Store avatars and add a seed script with fake match data"
+- [x] Commit (`501dbe7`)
 
 ## 3. Website (OP.gg-style)
 - [ ] Plan stack and pages in plan mode (Fastify API in the bot process, React + Vite, WAL mode)
@@ -38,8 +38,8 @@ because the website builds the same service functions (`getPlayerStats`, `getHea
 - [ ] Deploy
 
 ## Project setup
-- [ ] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
-- [ ] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` (and update `.gitignore`)
+- [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
+- [x] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` all committed (`claude.md` removed from `.gitignore`)
 - [ ] Delete the old `ROADMAP.md` (replaced by this file)
 - [ ] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
 - [ ] Hook: run `npm run typecheck` after every file edit

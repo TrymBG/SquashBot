@@ -1,5 +1,4 @@
 .env
-claude.md
 ROADMAP.md
 *.db*
 node_modules/
