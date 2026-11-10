@@ -18,6 +18,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 ## Commands
 - `npm run dev`: run the bot and the API together (reads `.env`)
 - `npm run api`: run only the API, no Discord token needed (`DATABASE_PATH=seed.db npm run api` for fake data)
+- `npm run web`: run the frontend dev server on http://localhost:5173 (needs the API running; `/api` is proxied to port 3000)
+- In `web/`: `npm run typecheck`, `npm run lint` (oxlint), `npm run build`. Run these too after frontend changes
 - `npm run deploy`: register slash commands with the test server (after adding/changing a command)
 - `npm test`: unit tests (`node:test` via tsx, files `src/**/*.test.ts`)
 - `npm run typecheck`: `tsc --noEmit` (tsx does not type-check)
@@ -29,7 +31,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
-- Website: Fastify v5 API in the same process as the bot (done). Planned: React + Vite frontend in `web/`, Recharts for charts
+- Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5, Tailwind 4. Planned: Recharts for charts
+- Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
 ## Project structure
 ```
@@ -56,6 +59,14 @@ src/
   elo.ts                # pure Elo functions + replayMatches, no dependencies
   elo.test.ts
   seed.ts               # fake data script, refuses to write to squash.db
+web/
+  vite.config.ts        # React + Tailwind plugins, /api proxy to port 3000
+  src/
+    main.tsx            # QueryClientProvider + BrowserRouter around App
+    App.tsx             # header + route table
+    api.ts              # response types + fetch functions
+    pages/              # LeaderboardPage, PlayerPage (placeholder)
+    components/         # Avatar
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -105,4 +116,5 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 47 tests pass.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
-- Next: website milestone 3 (frontend skeleton in `web/`), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Frontend skeleton works: leaderboard page; `/players/:id` is a placeholder.
+- Next: website milestone 4 (profile page with Recharts rating chart, rank tiers), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
