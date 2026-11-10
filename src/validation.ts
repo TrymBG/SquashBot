@@ -1,5 +1,4 @@
-// Input validation: parsing and checking user input (e.g. scores like "3-1") before it reaches the database.
-// Step 2
+// Input validation: checks user input (e.g. that a game score is possible for the format) before it reaches the database.
 
 export function isValidScore(format: string, myGames: number, theirGames: number): boolean {
     const winner = Math.max(myGames, theirGames); 
