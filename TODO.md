@@ -35,7 +35,7 @@ Milestones, one branch + PR each, each planned in plan mode when it starts:
 Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fastify serves `web/dist` in prod);
 `npm run api` runs the API without Discord (config split: `discordConfig()` only checked by the bot).
 
-- [ ] API skeleton: `buildServer()` + `GET /api/leaderboard`, tested with `inject`, `npm run api`, WAL, config split, `tsconfig` `include: ["src"]`
+- [x] API skeleton: `buildServer()` + `GET /api/leaderboard`, tested with `inject`, `npm run api`, WAL, config split, `tsconfig` `include: ["src"]`
 - [ ] Read-only API reusing `services/`: leaderboard, players, matches
 - [ ] `statsService`: `getPlayerStats`, `getHeadToHead` (with tests)
 - [ ] Leaderboard page
@@ -49,7 +49,7 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
 - [x] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` all committed (`claude.md` removed from `.gitignore`)
 - [x] Delete the old `ROADMAP.md` (replaced by this file)
-- [ ] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
+- [x] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
 - [ ] Hook: run `npm run typecheck` after every file edit
 - [ ] Permission allowlist in `.claude/settings.json` (`npm test`, `npm run typecheck`, `git status/diff/log`)
 
@@ -66,6 +66,8 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 ## Hosting + README
 - [ ] Pick a host that keeps the SQLite file on a persistent disk (Raspberry Pi, small VPS, Fly.io with a volume, …)
 - [ ] Run it with a process manager so it restarts on crash
+- [ ] API listens on `127.0.0.1` (Fastify default). On a host, listen on `0.0.0.0` (add a `HOST` option in `config.ts`)
+- [ ] `npm audit`: 1 high in `undici`, pulled in by `discord.js`. Check if a newer `discord.js` fixes it
 - [ ] Back up the database file (a simple copy job counts)
 - [ ] README: what it does, screenshots, how to run it, design decisions and tradeoffs
 - [ ] Friends are using it while my laptop is off

@@ -1,8 +1,9 @@
 // Separate script: registers the slash commands with Discord (run after adding/changing a command).
 import { REST, Routes } from "discord.js";
-import { config } from "./config.js";
+import { discordConfig } from "./config.js";
 import { commands } from "./commands/index.js";
 
+const config = discordConfig();
 const body = commands.map((command) => command.data.toJSON());
 
 const rest = new REST().setToken(config.token);

@@ -12,6 +12,10 @@ export function openDatabase(path: string): void {
   // SQLite ignores foreign keys unless you turn them on, once per connection.
   db.exec("PRAGMA foreign_keys = ON;");
 
+  // Write-ahead logging: website reads don't block bot writes (and the other way around).
+  // Stored in the file, so it stays on. In-memory databases ignore it.
+  db.exec("PRAGMA journal_mode = WAL;");
+
   initSchema();
 }
 
