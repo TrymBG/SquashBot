@@ -1,9 +1,12 @@
-// Entry point: creates the Discord client, logs in, and routes slash commands to their handler.
+// Entry point: creates the Discord client, logs in, routes slash commands to their handler,
+// and starts the website API in the same process.
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
-import { config } from "./config.js";
+import { databasePath, discordConfig, port } from "./config.js";
 import { commands } from "./commands/index.js";
 import { openDatabase } from "./db.js";
+import { buildServer } from "./api/server.js";
 
+const config = discordConfig();
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, (readyClient) => {
@@ -32,5 +35,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-openDatabase(config.databasePath);
+openDatabase(databasePath);
 client.login(config.token);
+
+const address = await buildServer().listen({ port });
+console.log(`API listening on ${address}`);

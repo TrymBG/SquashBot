@@ -34,5 +34,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+  // Only the bot/API code. The future web/ frontend gets its own tsconfig.
+  "include": ["src"]
 }

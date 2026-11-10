@@ -16,7 +16,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - About me: MSc software engineering (HVL/UiB), strongest in Java, newer to TypeScript and async code, job hunting for backend/fullstack roles.
 
 ## Commands
-- `npm run dev`: run the bot (reads `.env`)
+- `npm run dev`: run the bot and the API together (reads `.env`)
+- `npm run api`: run only the API, no Discord token needed (`DATABASE_PATH=seed.db npm run api` for fake data)
 - `npm run deploy`: register slash commands with the test server (after adding/changing a command)
 - `npm test`: unit tests (`node:test` via tsx, files `src/**/*.test.ts`)
 - `npm run typecheck`: `tsc --noEmit` (tsx does not type-check)
@@ -27,15 +28,20 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - TypeScript on Node.js 24 LTS, ES modules, run with `tsx`
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
-- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`), never committed
-- Website (planned): Fastify API in the same process as the bot, React + Vite frontend, Recharts for charts
+- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
+- Website: Fastify v5 API in the same process as the bot (done: `/api/leaderboard`). Planned: React + Vite frontend in `web/`, Recharts for charts
 
 ## Project structure
 ```
 src/
-  index.ts              # starts the bot: openDatabase(config.databasePath), routes slash commands
-  config.ts             # reads .env once, fails fast if missing
+  index.ts              # starts the bot + API: openDatabase(databasePath), routes slash commands
+  api.ts                # starts only the API (npm run api)
+  config.ts             # databasePath, port; discordConfig() checks the Discord vars (bot only)
   deploy-commands.ts    # registers slash commands with Discord
+  api/                  # website API (thin like commands/: call a service, return JSON)
+    server.ts           # buildServer(): Fastify app, not listening (tests use inject)
+    routes.ts           # GET /api/...
+    server.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
     ping.ts, result.ts, leaderboard.ts, undo.ts   # stats.ts, h2h.ts are empty placeholders
@@ -94,6 +100,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 25 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 28 tests pass.
 - Avatars are stored and `seed.db` provides fake data for the website.
-- Next: website (TODO.md section 3). Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- API skeleton works: `GET /api/leaderboard`, WAL mode on.
+- Next: website milestone 2 (stats services + API), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
