@@ -38,7 +38,8 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] API skeleton: `buildServer()` + `GET /api/leaderboard`, tested with `inject`, `npm run api`, WAL, config split, `tsconfig` `include: ["src"]`
 - [x] Read-only API reusing `services/`: `/api/players/:id`, `/api/players/:id/matches?limit&before`, `/api/h2h/:id/:opponentId` (Fastify schemas, 404/400)
 - [x] `statsService`: `getPlayerProfile` (record, form, streak, peak, position, chart points), `getPlayerMatches` (cursor paging), `getHeadToHead` (with tests)
-- [ ] Leaderboard page
+- [x] Frontend skeleton in `web/`: Vite + React + TS, Tailwind, TanStack Query, React Router, `/api` proxy
+- [x] Leaderboard page (avatars, rating, W–L, win %, links to `/players/:id` placeholder)
 - [ ] Player profile: avatar, rating, tier, W–L, win %, recent form (W W L W)
 - [ ] Rating-over-time chart (Recharts)
 - [ ] Head-to-head page and "rivals" (most played opponents)
