@@ -3,22 +3,8 @@ import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { getPlayer, getRatingHistory, openDatabase } from "../db.js";
 import { STARTING_RATING } from "../elo.js";
+import { play } from "../testHelpers.js";
 import { getLatestMatch, recordMatch, undoMatch } from "./matchService.js";
-
-// "reporter beat/lost to opponent myGames-theirGames in bo5", with the id doubling as the display name.
-function play(reporterId: string, opponentId: string, myGames: number, theirGames: number): number {
-  return recordMatch({
-    reporterId,
-    reporterName: reporterId,
-    reporterAvatarUrl: null,
-    opponentId,
-    opponentName: opponentId,
-    opponentAvatarUrl: null,
-    format: "bo5",
-    reporterGames: myGames,
-    opponentGames: theirGames,
-  }).matchId;
-}
 
 function rating(playerId: string): number {
   return getPlayer(playerId)!.rating;

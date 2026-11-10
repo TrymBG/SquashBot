@@ -29,7 +29,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
-- Website: Fastify v5 API in the same process as the bot (done: `/api/leaderboard`). Planned: React + Vite frontend in `web/`, Recharts for charts
+- Website: Fastify v5 API in the same process as the bot (done). Planned: React + Vite frontend in `web/`, Recharts for charts
 
 ## Project structure
 ```
@@ -40,7 +40,7 @@ src/
   deploy-commands.ts    # registers slash commands with Discord
   api/                  # website API (thin like commands/: call a service, return JSON)
     server.ts           # buildServer(): Fastify app, not listening (tests use inject)
-    routes.ts           # GET /api/...
+    routes.ts           # GET /api/leaderboard, /api/players/:id(/matches), /api/h2h/:id/:opponentId (Fastify schemas validate input)
     server.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
@@ -48,7 +48,9 @@ src/
   services/             # business logic, shared by bot and later the API
     matchService.ts     # recordMatch, undoMatch, canUndo
     matchService.test.ts
-    statsService.ts     # getLeaderboard (getPlayerStats, getHeadToHead planned)
+    statsService.ts     # getLeaderboard, getPlayerProfile, getPlayerMatches (cursor paging), getHeadToHead
+    statsService.test.ts
+  testHelpers.ts        # play(): record a bo5 match in one line, for tests
   db.ts                 # openDatabase + schema + all SQL. No business logic
   validation.ts         # isValidScore (pure)
   elo.ts                # pure Elo functions + replayMatches, no dependencies
@@ -100,7 +102,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 28 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 47 tests pass.
 - Avatars are stored and `seed.db` provides fake data for the website.
-- API skeleton works: `GET /api/leaderboard`, WAL mode on.
-- Next: website milestone 2 (stats services + API), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
+- Next: website milestone 3 (frontend skeleton in `web/`), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
