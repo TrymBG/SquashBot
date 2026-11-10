@@ -22,7 +22,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (error) {
     console.error(error);
-    await interaction.reply({ content: "Something went wrong.", flags: MessageFlags.Ephemeral });
+    // An interaction can only be replied to once. If the command already replied (or deferred), send a follow-up instead.
+    const message = { content: "Something went wrong.", flags: MessageFlags.Ephemeral } as const;
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(message);
+    } else {
+      await interaction.reply(message);
+    }
   }
 });
 

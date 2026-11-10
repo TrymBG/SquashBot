@@ -27,7 +27,15 @@ because the website builds the same service functions (`getPlayerStats`, `getHea
 - [x] Commit (`501dbe7`)
 
 ## 3. Website (OP.gg-style)
-- [ ] Plan stack and pages in plan mode (Fastify API in the bot process, React + Vite, WAL mode)
+- [x] Plan stack and pages in plan mode (Fastify API in the bot process, React + Vite, WAL mode)
+
+Milestones, one branch + PR each, each planned in plan mode when it starts:
+0. Cleanup + tooling → 1. API skeleton (`/api/leaderboard`) → 2. stats services + API → 3. frontend skeleton
+→ 4. profile page → 5. H2H + match history pages → 6. `/stats` + `/h2h` → 7. hosting + README.
+Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fastify serves `web/dist` in prod);
+`npm run api` runs the API without Discord (config split: `discordConfig()` only checked by the bot).
+
+- [ ] API skeleton: `buildServer()` + `GET /api/leaderboard`, tested with `inject`, `npm run api`, WAL, config split, `tsconfig` `include: ["src"]`
 - [ ] Read-only API reusing `services/`: leaderboard, players, matches
 - [ ] `statsService`: `getPlayerStats`, `getHeadToHead` (with tests)
 - [ ] Leaderboard page
@@ -40,14 +48,14 @@ because the website builds the same service functions (`getPlayerStats`, `getHea
 ## Project setup
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
 - [x] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` all committed (`claude.md` removed from `.gitignore`)
-- [ ] Delete the old `ROADMAP.md` (replaced by this file)
+- [x] Delete the old `ROADMAP.md` (replaced by this file)
 - [ ] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
 - [ ] Hook: run `npm run typecheck` after every file edit
 - [ ] Permission allowlist in `.claude/settings.json` (`npm test`, `npm run typecheck`, `git status/diff/log`)
 
 ## Bot: fixes and cleanup
-- [ ] `index.ts` error handler: use `followUp` when the interaction was already replied to (today a second `reply` throws)
-- [ ] `validation.ts`: header comment still mentions parsing "3-1" strings
+- [x] `index.ts` error handler: use `followUp` when the interaction was already replied to (today a second `reply` throws)
+- [x] `validation.ts`: header comment still mentions parsing "3-1" strings
 - [x] `config.ts`: stray blank lines and whitespace
 
 ## Bot: remaining commands (thin wrappers once the services exist)
