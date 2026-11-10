@@ -36,8 +36,8 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 `npm run api` runs the API without Discord (config split: `discordConfig()` only checked by the bot).
 
 - [x] API skeleton: `buildServer()` + `GET /api/leaderboard`, tested with `inject`, `npm run api`, WAL, config split, `tsconfig` `include: ["src"]`
-- [ ] Read-only API reusing `services/`: leaderboard, players, matches
-- [ ] `statsService`: `getPlayerStats`, `getHeadToHead` (with tests)
+- [x] Read-only API reusing `services/`: `/api/players/:id`, `/api/players/:id/matches?limit&before`, `/api/h2h/:id/:opponentId` (Fastify schemas, 404/400)
+- [x] `statsService`: `getPlayerProfile` (record, form, streak, peak, position, chart points), `getPlayerMatches` (cursor paging), `getHeadToHead` (with tests)
 - [ ] Leaderboard page
 - [ ] Player profile: avatar, rating, tier, W–L, win %, recent form (W W L W)
 - [ ] Rating-over-time chart (Recharts)

@@ -247,8 +247,8 @@ export interface LeaderboardRow {
   losses: number;
 }
 
-// Players with at least one match, highest rating first.
-export function getLeaderboard(limit: number): LeaderboardRow[] {
+// Players with at least one match, highest rating first. The default -1 means no limit (SQLite treats a negative LIMIT that way).
+export function getLeaderboard(limit = -1): LeaderboardRow[] {
   const rows = db.prepare(`
     SELECT
       p.id,
@@ -268,6 +268,80 @@ export function getLeaderboard(limit: number): LeaderboardRow[] {
     rating: row.rating,
     wins: row.wins,
     losses: row.losses,
+  }));
+}
+
+// One match seen from one player's side: who they played, the score from their view, and their rating change.
+export interface PlayerMatchRow {
+  matchId: number;
+  playedAt: string;
+  format: string;
+  opponentId: string;
+  opponentName: string;
+  opponentAvatarUrl: string | null;
+  won: boolean;
+  myGames: number;
+  opponentGames: number;
+  ratingBefore: number;
+  ratingAfter: number;
+}
+
+export interface PlayerMatchFilter {
+  // `| undefined` lets callers pass a value that may be missing (exactOptionalPropertyTypes is on).
+  limit?: number | undefined; // default: no limit
+  before?: number | undefined; // only matches with a lower id (older), for paging
+  opponentId?: string | undefined; // only matches against this player (head-to-head)
+}
+
+// A player's matches, newest first. Joining rating_history on the player's id both picks out
+// their matches and gives their rating change in each one.
+export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {}): PlayerMatchRow[] {
+  const rows = db.prepare(`
+    SELECT
+      m.id, m.played_at, m.format,
+      o.id AS opponent_id, o.display_name AS opponent_name, o.avatar_url AS opponent_avatar_url,
+      m.winner_id = h.player_id AS won,
+      CASE WHEN m.winner_id = h.player_id THEN m.winner_games ELSE m.loser_games END AS my_games,
+      CASE WHEN m.winner_id = h.player_id THEN m.loser_games ELSE m.winner_games END AS opponent_games,
+      h.rating_before, h.rating_after
+    FROM matches m
+    JOIN rating_history h ON h.match_id = m.id AND h.player_id = :playerId
+    JOIN players o ON o.id = CASE WHEN m.winner_id = h.player_id THEN m.loser_id ELSE m.winner_id END
+    WHERE (:before IS NULL OR m.id < :before)
+      AND (:opponentId IS NULL OR o.id = :opponentId)
+    ORDER BY m.id DESC
+    LIMIT :limit
+  `).all({
+    playerId,
+    before: filter.before ?? null,
+    opponentId: filter.opponentId ?? null,
+    limit: filter.limit ?? -1,
+  }) as {
+    id: number;
+    played_at: string;
+    format: string;
+    opponent_id: string;
+    opponent_name: string;
+    opponent_avatar_url: string | null;
+    won: number;
+    my_games: number;
+    opponent_games: number;
+    rating_before: number;
+    rating_after: number;
+  }[];
+
+  return rows.map((row) => ({
+    matchId: row.id,
+    playedAt: row.played_at,
+    format: row.format,
+    opponentId: row.opponent_id,
+    opponentName: row.opponent_name,
+    opponentAvatarUrl: row.opponent_avatar_url,
+    won: row.won === 1, // SQLite has no boolean type: a comparison gives 1 or 0
+    myGames: row.my_games,
+    opponentGames: row.opponent_games,
+    ratingBefore: row.rating_before,
+    ratingAfter: row.rating_after,
   }));
 }
 
