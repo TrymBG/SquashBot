@@ -69,8 +69,10 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const recorded = recordMatch({
     reporterId: reporter.id,
     reporterName: reporter.displayName,
+    reporterAvatarUrl: reporter.displayAvatarURL(),
     opponentId: opponent.id,
     opponentName: opponent.displayName,
+    opponentAvatarUrl: opponent.displayAvatarURL(),
     format,
     reporterGames: myGames,
     opponentGames: theirGames,

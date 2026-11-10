@@ -1,16 +1,26 @@
 // Database access: opens SQLite, creates tables, and holds all SQL queries. No business logic here.
 import { DatabaseSync } from "node:sqlite";
 
-const db = new DatabaseSync("squash.db");
+// Set by openDatabase. Every function below uses this connection.
+let db: DatabaseSync;
 
-// SQLite ignores foreign keys unless you turn them on, once per connection.
-db.exec("PRAGMA foreign_keys = ON;");
+// Opens the database (a file path, or ":memory:" in tests) and creates the tables if they don't exist.
+// Call once at startup, before any other function in this file.
+export function openDatabase(path: string): void {
+  db = new DatabaseSync(path);
 
-export function initSchema(): void {
+  // SQLite ignores foreign keys unless you turn them on, once per connection.
+  db.exec("PRAGMA foreign_keys = ON;");
+
+  initSchema();
+}
+
+function initSchema(): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS players (
       id           TEXT PRIMARY KEY,
       display_name TEXT NOT NULL,
+      avatar_url   TEXT,
       rating       REAL NOT NULL,
       created_at   TEXT NOT NULL
     );
@@ -35,6 +45,16 @@ export function initSchema(): void {
       PRIMARY KEY (match_id, player_id)
     );
   `);
+
+  addColumnIfMissing("players", "avatar_url", "TEXT");
+}
+
+// Migration for databases created before a column existed. CREATE TABLE IF NOT EXISTS never changes an existing table.
+function addColumnIfMissing(table: string, column: string, type: string): void {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  }
 }
 
 // Runs fn inside a transaction: either everything in it is saved, or nothing is.
@@ -50,31 +70,42 @@ export function transaction<T>(fn: () => T): T {
   }
 }
 
-// Creates the player with a starting rating, or updates their display name if they already exist.
-export function upsertPlayer(id: string, displayName: string, startingRating: number): void {
+// Creates the player with a starting rating, or refreshes their display name and avatar if they already exist.
+export function upsertPlayer(id: string, displayName: string, avatarUrl: string | null, startingRating: number): void {
   db.prepare(`
-    INSERT INTO players (id, display_name, rating, created_at)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name
-  `).run(id, displayName, startingRating, new Date().toISOString());
+    INSERT INTO players (id, display_name, avatar_url, rating, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name, avatar_url = excluded.avatar_url
+  `).run(id, displayName, avatarUrl, startingRating, new Date().toISOString());
 }
 
 export interface PlayerRow {
+  displayName: string;
+  avatarUrl: string | null;
   rating: number;
   matchesPlayed: number;
 }
 
-// Current rating and number of matches played, or undefined if the player doesn't exist.
+// Name, avatar, current rating and number of matches played, or undefined if the player doesn't exist.
 export function getPlayer(id: string): PlayerRow | undefined {
   const row = db.prepare(`
     SELECT
+      display_name,
+      avatar_url,
       rating,
       (SELECT COUNT(*) FROM matches WHERE winner_id = players.id OR loser_id = players.id) AS matches_played
     FROM players
     WHERE id = ?
-  `).get(id) as { rating: number; matches_played: number } | undefined;
+  `).get(id) as { display_name: string; avatar_url: string | null; rating: number; matches_played: number } | undefined;
 
-  return row && { rating: row.rating, matchesPlayed: row.matches_played };
+  return (
+    row && {
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+      rating: row.rating,
+      matchesPlayed: row.matches_played,
+    }
+  );
 }
 
 export function updatePlayerRating(id: string, rating: number): void {
@@ -194,15 +225,6 @@ export function getAllMatchesForReplay(): ReplayMatchRow[] {
   }));
 }
 
-// Each player's rating from just before the given match.
-export function getRatingsBefore(matchId: number): { playerId: string; ratingBefore: number }[] {
-  const rows = db.prepare(`
-    SELECT player_id, rating_before FROM rating_history WHERE match_id = ?
-  `).all(matchId) as { player_id: string; rating_before: number }[];
-
-  return rows.map((row) => ({ playerId: row.player_id, ratingBefore: row.rating_before }));
-}
-
 // Deletes a match. Its rating_history rows are removed automatically (ON DELETE CASCADE).
 export function deleteMatch(matchId: number): void {
   db.prepare("DELETE FROM matches WHERE id = ?").run(matchId);
@@ -243,6 +265,24 @@ export function getLeaderboard(limit: number): LeaderboardRow[] {
     wins: row.wins,
     losses: row.losses,
   }));
+}
+
+export interface RatingHistoryRow {
+  matchId: number;
+  ratingBefore: number;
+  ratingAfter: number;
+}
+
+// One player's rating change in every match they played, oldest first (for profile charts).
+export function getRatingHistory(playerId: string): RatingHistoryRow[] {
+  const rows = db.prepare(`
+    SELECT match_id, rating_before, rating_after
+    FROM rating_history
+    WHERE player_id = ?
+    ORDER BY match_id ASC
+  `).all(playerId) as { match_id: number; rating_before: number; rating_after: number }[];
+
+  return rows.map((row) => ({ matchId: row.match_id, ratingBefore: row.rating_before, ratingAfter: row.rating_after }));
 }
 
 export function insertRatingHistory(matchId: number, playerId: string, ratingBefore: number, ratingAfter: number): void {

@@ -2,7 +2,7 @@
 import { Client, Events, GatewayIntentBits, MessageFlags } from "discord.js";
 import { config } from "./config.js";
 import { commands } from "./commands/index.js";
-import { initSchema } from "./db.js";
+import { openDatabase } from "./db.js";
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -26,5 +26,5 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-initSchema();
+openDatabase(config.databasePath);
 client.login(config.token);

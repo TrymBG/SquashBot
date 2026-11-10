@@ -1,18 +1,20 @@
-// Business logic for matches: recordMatch, undoLastMatch. Used by commands (and later the website API).
+// Business logic for matches: recordMatch, undoMatch. Used by commands (and later the website API).
 import {
+  deleteAllRatingHistory,
   deleteMatch,
+  getAllMatchesForReplay,
   getLatestMatch as queryLatestMatch,
   getPlayer,
-  getRatingsBefore,
   insertMatch,
   insertRatingHistory,
+  resetAllRatings,
   transaction,
   updatePlayerRating,
   upsertPlayer,
   type MatchRow,
   type PlayerRow,
 } from "../db.js";
-import { calculateNewRatings, STARTING_RATING } from "../elo.js";
+import { calculateNewRatings, replayMatches, STARTING_RATING } from "../elo.js";
 
 export type { MatchRow };
 
@@ -20,11 +22,14 @@ export type { MatchRow };
 export interface MatchReport {
   reporterId: string;
   reporterName: string;
+  reporterAvatarUrl: string | null;
   opponentId: string;
   opponentName: string;
+  opponentAvatarUrl: string | null;
   format: string;
   reporterGames: number;
   opponentGames: number;
+  playedAt?: string; // UTC ISO timestamp. Defaults to now; the seed script sets it to spread matches over time.
 }
 
 export interface RatingChange {
@@ -43,8 +48,8 @@ export interface RecordedMatch {
 // Everything happens in one transaction, so a crash can never leave a match without its rating changes.
 export function recordMatch(report: MatchReport): RecordedMatch {
   return transaction(() => {
-    upsertPlayer(report.reporterId, report.reporterName, STARTING_RATING);
-    upsertPlayer(report.opponentId, report.opponentName, STARTING_RATING);
+    upsertPlayer(report.reporterId, report.reporterName, report.reporterAvatarUrl, STARTING_RATING);
+    upsertPlayer(report.opponentId, report.opponentName, report.opponentAvatarUrl, STARTING_RATING);
 
     const reporterWon = report.reporterGames > report.opponentGames;
     const winnerId = reporterWon ? report.reporterId : report.opponentId;
@@ -69,7 +74,7 @@ export function recordMatch(report: MatchReport): RecordedMatch {
       loserGames,
       format: report.format,
       reportedBy: report.reporterId,
-      playedAt: new Date().toISOString(),
+      playedAt: report.playedAt ?? new Date().toISOString(),
     });
 
     insertRatingHistory(matchId, winnerId, winner.rating, winnerRating);
@@ -97,7 +102,8 @@ export function canUndo(_match: MatchRow, _userId: string): boolean {
 
 export type UndoResult = { ok: true; match: MatchRow } | { ok: false; reason: string };
 
-// Removes the match and restores both players' ratings, but only if it is still the most recent match.
+// Removes the match, but only if it is still the most recent one, then recomputes every rating from scratch
+// by replaying all remaining matches. rating_history and players.rating are rebuilt from the matches table.
 export function undoMatch(matchId: number, requesterId: string): UndoResult {
   return transaction((): UndoResult => {
     const latest = queryLatestMatch();
@@ -108,10 +114,21 @@ export function undoMatch(matchId: number, requesterId: string): UndoResult {
       return { ok: false, reason: "You are not allowed to undo this match." };
     }
 
-    for (const { playerId, ratingBefore } of getRatingsBefore(matchId)) {
-      updatePlayerRating(playerId, ratingBefore);
-    }
+    // Delete first, so the replay below no longer sees this match.
     deleteMatch(matchId);
+    const { history, players } = replayMatches(getAllMatchesForReplay());
+
+    // Rebuild the history from the replay.
+    deleteAllRatingHistory();
+    for (const entry of history) {
+      insertRatingHistory(entry.matchId, entry.playerId, entry.ratingBefore, entry.ratingAfter);
+    }
+
+    // Reset everyone first: a player with no matches left is not in `players`, and must go back to the start.
+    resetAllRatings(STARTING_RATING);
+    for (const [playerId, player] of players) {
+      updatePlayerRating(playerId, player.rating);
+    }
 
     return { ok: true, match: latest };
   });

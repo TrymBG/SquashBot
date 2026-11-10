@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx --env-file=.env src/index.ts",
     "deploy": "tsx --env-file=.env src/deploy-commands.ts",
+    "seed": "tsx src/seed.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\""
   },
