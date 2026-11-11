@@ -31,7 +31,6 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
-- Website: Fastify v5 API in the same process as the bot (done). Planned: React + Vite frontend in `web/`, Recharts for charts
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5, Tailwind 4. Planned: Recharts for charts
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
@@ -117,6 +116,5 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 47 tests pass.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
-- Next: website milestone 3 (frontend skeleton in `web/`), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
 - Frontend skeleton works: leaderboard page; `/players/:id` is a placeholder.
 - Next: website milestone 4 (profile page with Recharts rating chart, rank tiers), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
