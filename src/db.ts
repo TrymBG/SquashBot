@@ -242,6 +242,7 @@ export function deleteAllRatingHistory(): void {
 export interface LeaderboardRow {
   id: string;
   displayName: string;
+  avatarUrl: string | null;
   rating: number;
   wins: number;
   losses: number;
@@ -253,6 +254,7 @@ export function getLeaderboard(limit = -1): LeaderboardRow[] {
     SELECT
       p.id,
       p.display_name,
+      p.avatar_url,
       p.rating,
       (SELECT COUNT(*) FROM matches WHERE winner_id = p.id) AS wins,
       (SELECT COUNT(*) FROM matches WHERE loser_id = p.id) AS losses
@@ -260,11 +262,19 @@ export function getLeaderboard(limit = -1): LeaderboardRow[] {
     WHERE EXISTS (SELECT 1 FROM matches WHERE winner_id = p.id OR loser_id = p.id)
     ORDER BY p.rating DESC
     LIMIT ?
-  `).all(limit) as { id: string; display_name: string; rating: number; wins: number; losses: number }[];
+  `).all(limit) as {
+    id: string;
+    display_name: string;
+    avatar_url: string | null;
+    rating: number;
+    wins: number;
+    losses: number;
+  }[];
 
   return rows.map((row) => ({
     id: row.id,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url,
     rating: row.rating,
     wins: row.wins,
     losses: row.losses,
