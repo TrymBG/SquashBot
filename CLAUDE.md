@@ -18,7 +18,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 ## Commands
 - `npm run dev`: run the bot and the API together (reads `.env`)
 - `npm run api`: run only the API, no Discord token needed (`DATABASE_PATH=seed.db npm run api` for fake data)
-- `npm run web`: run the frontend dev server on http://localhost:5173 (needs the API running; `/api` is proxied to port 3000)
+- `npm run dev:web`: API on `seed.db` + frontend together in one terminal (Ctrl+C stops both). The usual way to work on the website
+- `npm run web`: run only the frontend dev server on http://localhost:5173 (needs the API running; `/api` is proxied to port 3000). Listens on all addresses (`host: true`) so the Windows browser can reach it from WSL
 - In `web/`: `npm run typecheck`, `npm run lint` (oxlint), `npm run build`. Run these too after frontend changes
 - `npm run deploy`: register slash commands with the test server (after adding/changing a command)
 - `npm test`: unit tests (`node:test` via tsx, files `src/**/*.test.ts`)
@@ -104,7 +105,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie).
 - `recordMatch` accepts an optional `playedAt` (defaults to now). Used by the seed script, and later by an optional date on `/result`.
 - Website: API in the same process as the bot (one deploy), read-only, no login. Enable SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
-- Rank tiers (Gold, Plat, …) are display-only, computed from rating. Seasons = replay only the matches in a date range. Neither needs a schema change.
+- No rank tiers (decided 2026-11-12): the rating number is the only measure shown. Seasons = replay only the matches in a date range, no schema change needed.
 
 ## Rules for the code
 - Never hardcode the bot token. Read it through `config.ts`, which is the only file that reads `process.env` (`seed.ts` aside).
@@ -117,4 +118,4 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend skeleton works: leaderboard page; `/players/:id` is a placeholder.
-- Next: website milestone 4 (profile page with Recharts rating chart, rank tiers), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Next: website milestone 4 (profile page with Recharts rating chart, x-axis = match number), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.

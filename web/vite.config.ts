@@ -6,6 +6,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Listen on all network addresses, not just Linux's localhost, so a Windows browser can reach
+    // the dev server inside WSL. It's also reachable from your local network: fine for a read-only dev site.
+    host: true,
     // In dev, the browser talks only to Vite (port 5173). Requests to /api are forwarded to the
     // API (`npm run api` or `npm run dev` in the root, port 3000), so there are no CORS issues.
     proxy: {
