@@ -41,10 +41,12 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] Frontend skeleton in `web/`: Vite + React + TS, Tailwind, TanStack Query, React Router, `/api` proxy
 - [x] Leaderboard page (avatars, rating, W–L, win %, links to `/players/:id` placeholder)
 - [x] Dev quick wins: `host: true` in `vite.config.ts` (Windows browser reaches WSL), `npm run dev:web` (API on `seed.db` + website, via `concurrently`)
-- [ ] Player profile: avatar, rating, position, W–L, win %, streak, peak, recent form (W W L W)
-- [ ] Rating-over-time chart (Recharts)
+- [x] Player profile: avatar, rating, position, W–L, win %, streak, peak, recent form (W W L W)
+- [x] Rating-over-time chart (Recharts, x-axis = match number, date in tooltip)
+- [x] Match history on the profile: rating change per match, "Load more" with the `before` cursor
 - [ ] Head-to-head page and "rivals" (most played opponents)
-- [ ] Match history page with rating change per match
+- [ ] All-matches page (everyone's recent matches, not just one player's). Needs a new API endpoint
+- [ ] Design pass: own visual identity instead of the generic look (user has input, discuss first)
 - [ ] Deploy
 
 ## Project setup
@@ -75,6 +77,7 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [ ] Friends are using it while my laptop is off
 
 ## Later / ideas
+- [ ] Frontend bundle is >500 kB (mostly Recharts): lazy-load the profile page with `React.lazy` if load time becomes noticeable
 - [ ] Seasons: replay only the matches within a date range
 - [ ] Optional date on `/result` ("we played yesterday"). The service already accepts `playedAt`, only the command option is missing
 - [ ] Autocomplete that suggests only valid scores for the chosen format
