@@ -40,7 +40,8 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] `statsService`: `getPlayerProfile` (record, form, streak, peak, position, chart points), `getPlayerMatches` (cursor paging), `getHeadToHead` (with tests)
 - [x] Frontend skeleton in `web/`: Vite + React + TS, Tailwind, TanStack Query, React Router, `/api` proxy
 - [x] Leaderboard page (avatars, rating, W–L, win %, links to `/players/:id` placeholder)
-- [ ] Player profile: avatar, rating, tier, W–L, win %, recent form (W W L W)
+- [x] Dev quick wins: `host: true` in `vite.config.ts` (Windows browser reaches WSL), `npm run dev:web` (API on `seed.db` + website, via `concurrently`)
+- [ ] Player profile: avatar, rating, position, W–L, win %, streak, peak, recent form (W W L W)
 - [ ] Rating-over-time chart (Recharts)
 - [ ] Head-to-head page and "rivals" (most played opponents)
 - [ ] Match history page with rating change per match
@@ -74,7 +75,6 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [ ] Friends are using it while my laptop is off
 
 ## Later / ideas
-- [ ] Rank tiers from rating (Bronze, Silver, Gold, …), display only
 - [ ] Seasons: replay only the matches within a date range
 - [ ] Optional date on `/result` ("we played yesterday"). The service already accepts `playedAt`, only the command option is missing
 - [ ] Autocomplete that suggests only valid scores for the chosen format
