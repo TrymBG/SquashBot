@@ -32,7 +32,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
-- Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5, Tailwind 4. Planned: Recharts for charts
+- Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
 ## Project structure
@@ -66,8 +66,9 @@ web/
     main.tsx            # QueryClientProvider + BrowserRouter around App
     App.tsx             # header + route table
     api.ts              # response types + fetch functions
-    pages/              # LeaderboardPage, PlayerPage (placeholder)
-    components/         # Avatar
+    format.ts           # display formatting: rounding, "+16", dates in Norwegian time
+    pages/              # LeaderboardPage, PlayerPage (profile)
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -117,5 +118,5 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 47 tests pass.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
-- Frontend skeleton works: leaderboard page; `/players/:id` is a placeholder.
-- Next: website milestone 4 (profile page with Recharts rating chart, x-axis = match number), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
+- Next: website milestone 5 (head-to-head page), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
