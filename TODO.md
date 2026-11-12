@@ -4,8 +4,8 @@ The single checklist for the project. Work top to bottom.
 Claude checks an item off only when it is done **and** verified (`npm test` and `npm run typecheck` pass).
 New tasks found along the way go in the right section, not in chat.
 
-**Order:** finish `/undo` → avatar + seed data → website. `/stats` and `/h2h` come almost for free afterwards,
-because the website builds the same service functions (`getPlayerStats`, `getHeadToHead`).
+**Order:** sections 1–3 are the Discord-first phase (mostly done). Since 2026-11-12 the website is the main product:
+section 4 (accounts, registering results on the web) is next, then hosting.
 
 ---
 
@@ -49,6 +49,26 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [ ] Design pass: own visual identity instead of the generic look (user has input, discuss first)
 - [ ] Deploy
 
+## 4. Web-first: accounts and registering results on the website
+Decided 2026-11-12: the website becomes the main product. The Discord bot keeps working from the same services,
+but gets no new features. Each milestone gets its own plan-mode session and branch.
+
+Design:
+- Login with email + password. Passwords hashed with `node:crypto` scrypt (salt, `timingSafeEqual`), no extra dependency.
+- Sessions: random token in an `httpOnly`, `SameSite=Lax` cookie (`Secure` in production); `sessions` table stores a hash of the token.
+- Invite code required to sign up (one shared code in `.env` at first, read via `config.ts`).
+- A web account links to a player: `users` (email, password_hash, player_id). Discord players keep their Discord ID; web players get a generated id.
+- Results need the opponent's confirmation: pending reports live in a `match_reports` table; confirming calls the existing `recordMatch`,
+  so ratings, history, undo and replay don't change. Rejected reports never touch ratings.
+
+Milestones:
+- [ ] W1 Accounts API: `users` + `sessions` tables, `POST /api/signup` (invite code), `POST /api/login`, `POST /api/logout`, `GET /api/me`, tests
+- [ ] W2 Frontend auth: sign-up and login pages, header shows who's logged in, logout
+- [ ] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
+- [ ] W4 Frontend: "register result" form, "waiting for your confirmation" list
+- [ ] W5 Hosting (HTTPS is needed for `Secure` cookies), see "Hosting + README"
+- [ ] Later: rate-limit login (`@fastify/rate-limit`), "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
+
 ## Project setup
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
 - [x] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` all committed (`claude.md` removed from `.gitignore`)
@@ -62,7 +82,7 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] `validation.ts`: header comment still mentions parsing "3-1" strings
 - [x] `config.ts`: stray blank lines and whitespace
 
-## Bot: remaining commands (thin wrappers once the services exist)
+## Bot: remaining commands (on hold: web-first since 2026-11-12, the bot gets no new features)
 - [ ] `/stats [player]`: rating, W–L, win %, recent matches with rating change (+16), zero-match case
 - [ ] `/h2h player1 player2`: record between two players, last 5 matches
 - [ ] All user input validated
