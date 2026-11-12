@@ -1,7 +1,7 @@
 # Squash Elo Discord Bot
 
 ## What this project is
-A Discord bot for my squash friend group. We log match results with slash commands, and the bot keeps an Elo rating ladder, leaderboard, and head-to-head stats. Next: an OP.gg-style read-only website (profiles, rating charts, match history).
+An Elo rating ladder for my squash friend group. It started as a Discord bot (log results with slash commands); since 2026-11-12 the **website is the main product**: OP.gg-style profiles, rating charts and match history, and next, accounts so people can register results on the web. The bot keeps working from the same services but gets no new features.
 It is a learning and portfolio project: I must be able to explain every part in interviews. Hobby scale, so prefer the simplest design that works.
 
 ## How to work with me
@@ -105,7 +105,8 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - **`/undo`:** only the most recent match, after a confirmation button. It deletes the match, then **recomputes all ratings from scratch** with `replayMatches` (everyone back to 1000, replay every remaining match ordered by `id`, rewrite `rating_history` and `players.rating`). The same replay works for rule changes and future seasons. Anyone can undo for now (`canUndo`).
 - Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie).
 - `recordMatch` accepts an optional `playedAt` (defaults to now). Used by the seed script, and later by an optional date on `/result`.
-- Website: API in the same process as the bot (one deploy), read-only, no login. Enable SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
+- Website: API in the same process as the bot (one deploy). SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
+- **Web accounts (planned, TODO.md section 4):** email + password (scrypt from `node:crypto`), session token in an httpOnly cookie, invite code required to sign up. A `users` row links to a `players` row, so Discord players and web players share all stats code. Web-reported results wait in `match_reports` until the opponent confirms; confirming calls `recordMatch`, so the rating logic is unchanged.
 - No rank tiers (decided 2026-11-12): the rating number is the only measure shown. Seasons = replay only the matches in a date range, no schema change needed.
 
 ## Rules for the code
@@ -119,4 +120,4 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
-- Next: website milestone 5 (head-to-head page), see TODO.md section 3. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Next: TODO.md section 4, milestone W1 (accounts API). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
