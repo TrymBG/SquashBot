@@ -31,7 +31,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - TypeScript on Node.js 24 LTS, ES modules, run with `tsx`
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
-- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000)), never committed
+- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `NODE_ENV=production` (Secure cookies)), never committed. Claude never reads `.env`
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
@@ -40,12 +40,15 @@ It is a learning and portfolio project: I must be able to explain every part in 
 src/
   index.ts              # starts the bot + API: openDatabase(databasePath), routes slash commands
   api.ts                # starts only the API (npm run api)
-  config.ts             # databasePath, port; discordConfig() checks the Discord vars (bot only)
+  config.ts             # databasePath, port, inviteCode, cookieSecure; discordConfig() checks the Discord vars (bot only)
+  passwords.ts          # hashPassword/verifyPassword (scrypt), safeEqual, session tokens + hashToken (pure node:crypto)
+  passwords.test.ts
   deploy-commands.ts    # registers slash commands with Discord
   api/                  # website API (thin like commands/: call a service, return JSON)
-    server.ts           # buildServer(): Fastify app, not listening (tests use inject)
+    server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
     routes.ts           # GET /api/leaderboard, /api/players/:id(/matches), /api/h2h/:id/:opponentId (Fastify schemas validate input)
-    server.test.ts
+    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; currentUser(request) for protected routes
+    server.test.ts, authRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
     ping.ts, result.ts, leaderboard.ts, undo.ts   # stats.ts, h2h.ts are empty placeholders
@@ -54,6 +57,8 @@ src/
     matchService.test.ts
     statsService.ts     # getLeaderboard, getPlayerProfile, getPlayerMatches (cursor paging), getHeadToHead
     statsService.test.ts
+    authService.ts      # signup (invite code), login, logout, getUserForSession; `now` parameter for testable expiry
+    authService.test.ts
   testHelpers.ts        # play(): record a bo5 match in one line, for tests
   db.ts                 # openDatabase + schema + all SQL. No business logic
   validation.ts         # isValidScore (pure)
@@ -78,7 +83,8 @@ web/
 - `elo.ts` is pure math with no imports, tested in isolation.
 
 ## Database design
-- Tables: `players`, `matches`, `rating_history`.
+- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed).
+- Web players get a UUID as player id (36 chars; Discord ids are numeric), so route schemas allow ids up to 64 chars.
 - Players are identified by Discord user ID, stored as TEXT (64-bit, unsafe as a JS `number`).
 - `players.display_name` and `players.avatar_url` are refreshed every time the player plays, so the website never calls Discord. `avatar_url` can be NULL (seed players).
 - `players.rating` caches the current rating (simple leaderboard query) and is always updated in the same transaction as `rating_history`.
@@ -106,7 +112,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie).
 - `recordMatch` accepts an optional `playedAt` (defaults to now). Used by the seed script, and later by an optional date on `/result`.
 - Website: API in the same process as the bot (one deploy). SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
-- **Web accounts (planned, TODO.md section 4):** email + password (scrypt from `node:crypto`), session token in an httpOnly cookie, invite code required to sign up. A `users` row links to a `players` row, so Discord players and web players share all stats code. Web-reported results wait in `match_reports` until the opponent confirms; confirming calls `recordMatch`, so the rating logic is unchanged.
+- **Web accounts (W1 done, rest in TODO.md section 4):** email + password (scrypt from `node:crypto`), session token in an httpOnly cookie, invite code required to sign up. A `users` row links to a `players` row, so Discord players and web players share all stats code. Web-reported results wait in `match_reports` until the opponent confirms; confirming calls `recordMatch`, so the rating logic is unchanged.
 - No rank tiers (decided 2026-11-12): the rating number is the only measure shown. Seasons = replay only the matches in a date range, no schema change needed.
 
 ## Rules for the code
@@ -116,8 +122,9 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 47 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 78 tests pass.
+- Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
-- Next: TODO.md section 4, milestone W1 (accounts API). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Next: TODO.md section 4, milestone W2 (sign-up and login pages). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.

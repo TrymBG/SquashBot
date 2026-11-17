@@ -62,7 +62,8 @@ Design:
   so ratings, history, undo and replay don't change. Rejected reports never touch ratings.
 
 Milestones:
-- [ ] W1 Accounts API: `users` + `sessions` tables, `POST /api/signup` (invite code), `POST /api/login`, `POST /api/logout`, `GET /api/me`, tests
+- [x] W1 Accounts API: `users` + `sessions` tables, `POST /api/signup` (invite code), `POST /api/login`, `POST /api/logout`, `GET /api/me`, tests
+  - Set `INVITE_CODE=...` in `.env` to open sign-up (unset = closed). Protect W3 routes with `currentUser(request)` from `api/authRoutes.ts`
 - [ ] W2 Frontend auth: sign-up and login pages, header shows who's logged in, logout
 - [ ] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
 - [ ] W4 Frontend: "register result" form, "waiting for your confirmation" list

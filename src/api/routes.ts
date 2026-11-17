@@ -4,7 +4,8 @@
 import type { FastifyInstance } from "fastify";
 import { getHeadToHead, getLeaderboard, getPlayerMatches, getPlayerProfile } from "../services/statsService.js";
 
-const playerId = { type: "string", minLength: 1, maxLength: 32 } as const;
+// Discord ids (up to 20 digits) or web players' UUIDs (36 characters).
+const playerId = { type: "string", minLength: 1, maxLength: 64 } as const;
 
 const playerParams = {
   type: "object",
