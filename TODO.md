@@ -64,7 +64,8 @@ Design:
 Milestones:
 - [x] W1 Accounts API: `users` + `sessions` tables, `POST /api/signup` (invite code), `POST /api/login`, `POST /api/logout`, `GET /api/me`, tests
   - Set `INVITE_CODE=...` in `.env` to open sign-up (unset = closed). Protect W3 routes with `currentUser(request)` from `api/authRoutes.ts`
-- [ ] W2 Frontend auth: sign-up and login pages, header shows who's logged in, logout
+- [x] W2 Frontend auth: sign-up and login pages, header shows who's logged in, logout
+  - Invite link for friends: `/signup?code=<INVITE_CODE>` pre-fills the code
 - [ ] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
 - [ ] W4 Frontend: "register result" form, "waiting for your confirmation" list
 - [ ] W5 Hosting (HTTPS is needed for `Secure` cookies), see "Hosting + README"
@@ -98,6 +99,7 @@ Milestones:
 - [ ] Friends are using it while my laptop is off
 
 ## Later / ideas
+- [ ] Frontend tests: Vitest + Testing Library for the forms (renders, shows server error, disables while sending)
 - [ ] Frontend bundle is >500 kB (mostly Recharts): lazy-load the profile page with `React.lazy` if load time becomes noticeable
 - [ ] Seasons: replay only the matches within a date range
 - [ ] Optional date on `/result` ("we played yesterday"). The service already accepts `playedAt`, only the command option is missing

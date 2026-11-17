@@ -70,10 +70,11 @@ web/
   src/
     main.tsx            # QueryClientProvider + BrowserRouter around App
     App.tsx             # header + route table
-    api.ts              # response types + fetch functions
+    api.ts              # response types + fetch functions (getJson/postJson; ApiError carries the server's error text)
+    auth.ts             # useCurrentUser (query ['me']), useLogin/useSignup/useLogout (mutations that update ['me'])
     format.ts           # display formatting: rounding, "+16", dates in Norwegian time
-    pages/              # LeaderboardPage, PlayerPage (profile)
-    components/         # Avatar, ResultBadge, RatingChart, MatchHistory
+    pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code)
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, TextField
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -127,4 +128,5 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
-- Next: TODO.md section 4, milestone W2 (sign-up and login pages). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
+- Next: TODO.md section 4, milestone W3 (report results API with opponent confirmation). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
