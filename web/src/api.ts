@@ -51,12 +51,21 @@ export interface MatchPage {
   nextBefore: number | null // pass back as `before` for the next page, null on the last page
 }
 
+// A website account (copy of PublicUser in the backend's authService.ts). Never includes the password.
+export interface User {
+  id: string
+  email: string
+  playerId: string
+  displayName: string
+}
+
 // An HTTP error from the API, with its status, so a page can tell "not found" (404) from "server down".
+// `message` is the server's `{ error }` text when there is one (e.g. "Wrong invite code"), so forms can show it.
 export class ApiError extends Error {
   readonly status: number
 
-  constructor(path: string, status: number) {
-    super(`${path} returned ${status}`)
+  constructor(message: string, status: number) {
+    super(message)
     this.status = status
   }
 }
@@ -65,13 +74,27 @@ export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404
 }
 
-// GET a JSON endpoint. Throws ApiError on a non-2xx status, so TanStack Query shows it as an error.
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path)
+// Sends a request and returns the parsed JSON body (undefined for 204 No Content).
+// Throws ApiError on a non-2xx status, so TanStack Query shows it as an error.
+// The session cookie is sent automatically: the page and the API share one origin (Vite proxies /api in dev).
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, init)
   if (!response.ok) {
-    throw new ApiError(path, response.status)
+    const body = (await response.json().catch(() => null)) as { error?: string } | null
+    throw new ApiError(body?.error ?? `${path} returned ${response.status}`, response.status)
   }
-  return (await response.json()) as T
+  return (response.status === 204 ? undefined : await response.json()) as T
+}
+
+function getJson<T>(path: string): Promise<T> {
+  return request(path)
+}
+
+function postJson<T>(path: string, body?: object): Promise<T> {
+  return request(path, {
+    method: 'POST',
+    ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
+  })
 }
 
 export function fetchLeaderboard(): Promise<LeaderboardRow[]> {
@@ -85,4 +108,33 @@ export function fetchPlayerProfile(playerId: string): Promise<PlayerProfile> {
 export function fetchPlayerMatches(playerId: string, before?: number): Promise<MatchPage> {
   const query = before === undefined ? '' : `?before=${before}`
   return getJson(`/api/players/${encodeURIComponent(playerId)}/matches${query}`)
+}
+
+// Who is logged in, or null. A 401 just means "not logged in", so it isn't treated as an error.
+export async function fetchMe(): Promise<User | null> {
+  try {
+    return (await getJson<{ user: User }>('/api/me')).user
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null
+    throw error
+  }
+}
+
+export interface SignupInput {
+  email: string
+  password: string
+  displayName: string
+  inviteCode: string
+}
+
+export async function signup(input: SignupInput): Promise<User> {
+  return (await postJson<{ user: User }>('/api/signup', input)).user
+}
+
+export async function login(input: { email: string; password: string }): Promise<User> {
+  return (await postJson<{ user: User }>('/api/login', input)).user
+}
+
+export function logout(): Promise<void> {
+  return postJson('/api/logout')
 }
