@@ -12,6 +12,12 @@ function requireEnv(name: string): string {
 // `||` (not `??`) so an empty `DATABASE_PATH=` line also falls back to the default.
 export const databasePath = process.env.DATABASE_PATH || "squash.db";
 export const port = Number(process.env.PORT || 3000);
+
+// The code friends enter to sign up on the website. Unset means sign-up is closed.
+export const inviteCode = process.env.INVITE_CODE || null;
+
+// Session cookies are HTTPS-only in production. Local dev runs on plain http, where a `secure` cookie wouldn't be sent.
+export const cookieSecure = process.env.NODE_ENV === "production";
 if (!Number.isInteger(port)) {
   throw new Error(`PORT must be a whole number, got: ${process.env.PORT}`);
 }

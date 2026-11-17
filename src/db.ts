@@ -48,6 +48,23 @@ function initSchema(): void {
       rating_after  REAL NOT NULL,
       PRIMARY KEY (match_id, player_id)
     );
+
+    -- Website accounts. Each account belongs to exactly one player, so web and Discord players share all stats code.
+    CREATE TABLE IF NOT EXISTS users (
+      id            TEXT PRIMARY KEY,
+      email         TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      player_id     TEXT NOT NULL UNIQUE REFERENCES players(id),
+      created_at    TEXT NOT NULL
+    );
+
+    -- Logged-in browsers. Stores a hash of the cookie's token, never the token itself.
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
   `);
 
   addColumnIfMissing("players", "avatar_url", "TEXT");
@@ -378,4 +395,79 @@ export function insertRatingHistory(matchId: number, playerId: string, ratingBef
     INSERT INTO rating_history (match_id, player_id, rating_before, rating_after)
     VALUES (?, ?, ?, ?)
   `).run(matchId, playerId, ratingBefore, ratingAfter);
+}
+
+export interface UserRow {
+  id: string;
+  email: string;
+  passwordHash: string;
+  playerId: string;
+  displayName: string; // from the linked player
+}
+
+export function insertUser(id: string, email: string, passwordHash: string, playerId: string): void {
+  db.prepare(`
+    INSERT INTO users (id, email, password_hash, player_id, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, email, passwordHash, playerId, new Date().toISOString());
+}
+
+// Selects a user with their player's display name. `where` goes into the SQL text, so its type only allows these
+// two fixed column names: user input can only ever be the `?` value.
+function queryUser(where: "u.email" | "u.id", value: string): UserRow | undefined {
+  const row = db.prepare(`
+    SELECT u.id, u.email, u.password_hash, u.player_id, p.display_name
+    FROM users u
+    JOIN players p ON p.id = u.player_id
+    WHERE ${where} = ?
+  `).get(value) as
+    | { id: string; email: string; password_hash: string; player_id: string; display_name: string }
+    | undefined;
+
+  return (
+    row && {
+      id: row.id,
+      email: row.email,
+      passwordHash: row.password_hash,
+      playerId: row.player_id,
+      displayName: row.display_name,
+    }
+  );
+}
+
+// Emails are stored lowercase, so callers pass a lowercased email.
+export function getUserByEmail(email: string): UserRow | undefined {
+  return queryUser("u.email", email);
+}
+
+export function getUserById(id: string): UserRow | undefined {
+  return queryUser("u.id", id);
+}
+
+export interface SessionRow {
+  userId: string;
+  expiresAt: string;
+}
+
+export function insertSession(tokenHash: string, userId: string, expiresAt: string): void {
+  db.prepare(`
+    INSERT INTO sessions (token_hash, user_id, created_at, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).run(tokenHash, userId, new Date().toISOString(), expiresAt);
+}
+
+export function getSession(tokenHash: string): SessionRow | undefined {
+  const row = db.prepare("SELECT user_id, expires_at FROM sessions WHERE token_hash = ?").get(tokenHash) as
+    | { user_id: string; expires_at: string }
+    | undefined;
+  return row && { userId: row.user_id, expiresAt: row.expires_at };
+}
+
+export function deleteSession(tokenHash: string): void {
+  db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(tokenHash);
+}
+
+// ISO timestamps in UTC sort as text, so a string comparison works for "older than now".
+export function deleteExpiredSessions(now: string): void {
+  db.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(now);
 }
