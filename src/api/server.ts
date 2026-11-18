@@ -4,6 +4,7 @@ import fastifyCookie from "@fastify/cookie";
 import Fastify, { type FastifyInstance } from "fastify";
 import { cookieSecure, inviteCode } from "../config.js";
 import { authRoutes, type AuthOptions } from "./authRoutes.js";
+import { reportRoutes } from "./reportRoutes.js";
 import { apiRoutes } from "./routes.js";
 
 // Settings come from config.ts by default; tests pass their own (e.g. an invite code) instead of touching process.env.
@@ -12,5 +13,6 @@ export function buildServer(auth: AuthOptions = { inviteCode, cookieSecure }): F
   app.register(fastifyCookie); // parses the Cookie header into request.cookies, adds reply.setCookie
   app.register(apiRoutes);
   app.register(authRoutes, auth);
+  app.register(reportRoutes);
   return app;
 }

@@ -65,6 +65,23 @@ function initSchema(): void {
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL
     );
+
+    -- Results reported on the website. Pending until the opponent confirms; confirming records a real match.
+    -- Scores are from the reporter's view. Resolved reports are kept (audit trail).
+    CREATE TABLE IF NOT EXISTS match_reports (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      reporter_id    TEXT NOT NULL REFERENCES players(id),
+      opponent_id    TEXT NOT NULL REFERENCES players(id),
+      format         TEXT NOT NULL,
+      reporter_games INTEGER NOT NULL,
+      opponent_games INTEGER NOT NULL,
+      played_at      TEXT NOT NULL,
+      status         TEXT NOT NULL CHECK (status IN ('pending', 'confirmed', 'rejected', 'cancelled')),
+      created_at     TEXT NOT NULL,
+      resolved_at    TEXT,
+      -- SET NULL: if the match is undone later, the report stays but loses its link.
+      match_id       INTEGER REFERENCES matches(id) ON DELETE SET NULL
+    );
   `);
 
   addColumnIfMissing("players", "avatar_url", "TEXT");
@@ -79,7 +96,13 @@ function addColumnIfMissing(table: string, column: string, type: string): void {
 }
 
 // Runs fn inside a transaction: either everything in it is saved, or nothing is.
+// Reentrant: called while a transaction is already open (e.g. confirming a report calls recordMatch, which has its
+// own transaction()), it just runs fn inside the outer one, which commits or rolls back everything. SQLite refuses a
+// nested BEGIN. Like Spring's @Transactional with the default REQUIRED propagation.
 export function transaction<T>(fn: () => T): T {
+  if (db.isTransaction) {
+    return fn();
+  }
   db.exec("BEGIN");
   try {
     const result = fn();
@@ -470,4 +493,129 @@ export function deleteSession(tokenHash: string): void {
 // ISO timestamps in UTC sort as text, so a string comparison works for "older than now".
 export function deleteExpiredSessions(now: string): void {
   db.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(now);
+}
+
+export type ReportStatus = "pending" | "confirmed" | "rejected" | "cancelled";
+
+export interface NewReport {
+  reporterId: string;
+  opponentId: string;
+  format: string;
+  reporterGames: number;
+  opponentGames: number;
+  playedAt: string;
+}
+
+// A report with both players' names, as the website shows it.
+export interface ReportRow extends NewReport {
+  id: number;
+  reporterName: string;
+  opponentName: string;
+  status: ReportStatus;
+  createdAt: string;
+}
+
+// Saves a new pending report and returns its id.
+export function insertReport(report: NewReport, createdAt: string): number {
+  const result = db.prepare(`
+    INSERT INTO match_reports (reporter_id, opponent_id, format, reporter_games, opponent_games, played_at, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+  `).run(
+    report.reporterId,
+    report.opponentId,
+    report.format,
+    report.reporterGames,
+    report.opponentGames,
+    report.playedAt,
+    createdAt,
+  );
+  return Number(result.lastInsertRowid);
+}
+
+const REPORT_SELECT = `
+  SELECT
+    r.id, r.reporter_id, rp.display_name AS reporter_name, r.opponent_id, op.display_name AS opponent_name,
+    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at
+  FROM match_reports r
+  JOIN players rp ON rp.id = r.reporter_id
+  JOIN players op ON op.id = r.opponent_id
+`;
+
+interface ReportDbRow {
+  id: number;
+  reporter_id: string;
+  reporter_name: string;
+  opponent_id: string;
+  opponent_name: string;
+  format: string;
+  reporter_games: number;
+  opponent_games: number;
+  played_at: string;
+  status: ReportStatus;
+  created_at: string;
+}
+
+function toReportRow(row: ReportDbRow): ReportRow {
+  return {
+    id: row.id,
+    reporterId: row.reporter_id,
+    reporterName: row.reporter_name,
+    opponentId: row.opponent_id,
+    opponentName: row.opponent_name,
+    format: row.format,
+    reporterGames: row.reporter_games,
+    opponentGames: row.opponent_games,
+    playedAt: row.played_at,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+export function getReport(id: number): ReportRow | undefined {
+  const row = db.prepare(`${REPORT_SELECT} WHERE r.id = ?`).get(id) as ReportDbRow | undefined;
+  return row && toReportRow(row);
+}
+
+// Pending reports where the player is the reporter or the opponent, newest first.
+export function getPendingReportsFor(playerId: string): ReportRow[] {
+  const rows = db.prepare(`
+    ${REPORT_SELECT}
+    WHERE r.status = 'pending' AND (r.reporter_id = :playerId OR r.opponent_id = :playerId)
+    ORDER BY r.id DESC
+  `).all({ playerId }) as unknown as ReportDbRow[]; // via unknown: TypeScript won't cast straight to the narrow `status` type
+
+  return rows.map(toReportRow);
+}
+
+// Moves a report out of 'pending'. The WHERE only matches pending reports, so a report is resolved at most once;
+// returns false if it wasn't pending anymore.
+export function resolveReport(id: number, status: Exclude<ReportStatus, "pending">, resolvedAt: string, matchId: number | null): boolean {
+  const result = db.prepare(`
+    UPDATE match_reports SET status = ?, resolved_at = ?, match_id = ?
+    WHERE id = ? AND status = 'pending'
+  `).run(status, resolvedAt, matchId, id);
+  return Number(result.changes) === 1;
+}
+
+export interface OpponentRow {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  rating: number;
+}
+
+// Players who have a web account (so they can log in and confirm), except the given one. By name.
+export function getPlayersWithAccounts(exceptPlayerId: string): OpponentRow[] {
+  const rows = db.prepare(`
+    SELECT p.id, p.display_name, p.avatar_url, p.rating
+    FROM players p
+    JOIN users u ON u.player_id = p.id
+    WHERE p.id != ?
+    ORDER BY p.display_name COLLATE NOCASE
+  `).all(exceptPlayerId) as { id: string; display_name: string; avatar_url: string | null; rating: number }[];
+  return rows.map((row) => ({ id: row.id, displayName: row.display_name, avatarUrl: row.avatar_url, rating: row.rating }));
+}
+
+export function playerHasAccount(playerId: string): boolean {
+  return db.prepare("SELECT 1 FROM users WHERE player_id = ?").get(playerId) !== undefined;
 }
