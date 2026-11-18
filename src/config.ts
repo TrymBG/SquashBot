@@ -18,6 +18,12 @@ export const inviteCode = process.env.INVITE_CODE || null;
 
 // Session cookies are HTTPS-only in production. Local dev runs on plain http, where a `secure` cookie wouldn't be sent.
 export const cookieSecure = process.env.NODE_ENV === "production";
+
+// The built website (`npm run build` → web/dist). Set in production so Fastify serves it; unset in dev, where Vite does.
+export const webDistPath = process.env.WEB_DIST_PATH || null;
+
+// Where `npm run backup` writes database snapshots.
+export const backupDir = process.env.BACKUP_DIR || "backups";
 if (!Number.isInteger(port)) {
   throw new Error(`PORT must be a whole number, got: ${process.env.PORT}`);
 }

@@ -148,3 +148,35 @@ describe("a new account", () => {
     assert.equal(profile.json().position, null); // no matches yet
   });
 });
+
+describe("rate limit on login and sign-up", () => {
+  it("answers 429 after too many login attempts from one IP, with a message the form can show", async () => {
+    app = buildServer({ inviteCode: INVITE, cookieSecure: false, authRateLimit: { max: 3, timeWindowMs: 60_000 } });
+    const wrong = { email: TRYM.email, password: "wrong password" };
+
+    for (let i = 0; i < 3; i++) {
+      assert.equal((await post("/api/login", wrong)).statusCode, 401);
+    }
+    const blocked = await post("/api/login", wrong);
+
+    assert.equal(blocked.statusCode, 429);
+    assert.equal(blocked.json().error, "Too many attempts. Try again in a few minutes.");
+  });
+
+  it("limits sign-up attempts the same way (its own counter)", async () => {
+    app = buildServer({ inviteCode: INVITE, cookieSecure: false, authRateLimit: { max: 2, timeWindowMs: 60_000 } });
+    const guess = { ...TRYM, inviteCode: "guess" };
+
+    assert.equal((await post("/api/signup", guess)).statusCode, 403);
+    assert.equal((await post("/api/signup", guess)).statusCode, 403);
+    assert.equal((await post("/api/signup", guess)).statusCode, 429);
+  });
+
+  it("doesn't limit other routes", async () => {
+    app = buildServer({ inviteCode: INVITE, cookieSecure: false, authRateLimit: { max: 1, timeWindowMs: 60_000 } });
+
+    for (let i = 0; i < 5; i++) {
+      assert.equal((await me()).statusCode, 401); // not logged in, but never 429
+    }
+  });
+});

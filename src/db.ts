@@ -619,3 +619,14 @@ export function getPlayersWithAccounts(exceptPlayerId: string): OpponentRow[] {
 export function playerHasAccount(playerId: string): boolean {
   return db.prepare("SELECT 1 FROM users WHERE player_id = ?").get(playerId) !== undefined;
 }
+
+// A trivial query, so a health check fails if the database can't be read.
+export function checkDatabase(): void {
+  db.prepare("SELECT 1").get();
+}
+
+// Writes a consistent copy of the whole database to `path` (which must not exist yet), including changes still in the
+// -wal file. Safe while the app is running, unlike copying the file, which can miss recent writes.
+export function vacuumInto(path: string): void {
+  db.prepare("VACUUM INTO ?").run(path);
+}

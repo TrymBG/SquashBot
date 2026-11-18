@@ -1,0 +1,25 @@
+# systemd service: keeps the bot + website running, starts it on boot, restarts it if it crashes.
+# Install: sudo cp deploy/squash.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now squash
+# Logs:    journalctl -u squash -f
+[Unit]
+Description=Squash Ladder (Discord bot + website)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=squash
+WorkingDirectory=/home/squash/SquashBot
+Environment=NODE_ENV=production
+# node directly (not `npm start`), so stop/restart signals reach the app without a wrapper process in between.
+ExecStart=/usr/bin/node --env-file=.env dist/index.js
+Restart=always
+RestartSec=5
+
+# Hardening: the app can only write to its data folder (the database and its -wal/-shm files).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/squash/data
+
+[Install]
+WantedBy=multi-user.target
