@@ -25,13 +25,15 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - `npm test`: unit tests (`node:test` via tsx, files `src/**/*.test.ts`)
 - `npm run typecheck`: `tsc --noEmit` (tsx does not type-check)
 - `npm run seed`: fresh `seed.db` with 6 fake players and 120 matches over 90 days (deterministic)
+- Production: `npm run build` (backend `tsc -p tsconfig.build.json` → `dist/`, plus `web/dist`), `npm start` (bot + API + website from `dist/`),
+  `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
 - `DATABASE_PATH=seed.db npm run dev`: run the bot on the fake data
 
 ## Tech stack
 - TypeScript on Node.js 24 LTS, ES modules, run with `tsx`
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
-- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `NODE_ENV=production` (Secure cookies)), never committed. Claude never reads `.env`
+- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `NODE_ENV=production` (Secure cookies), `WEB_DIST_PATH` (production: `web/dist`, Fastify serves the site), `BACKUP_DIR` (default `backups`)), never committed. Claude never reads `.env`
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
@@ -63,6 +65,10 @@ src/
     reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
     reportService.test.ts
   db.test.ts            # reentrant transaction()
+  backups.ts            # backupDatabase(dir): VACUUM INTO a dated file, keep the newest 14 (+ backups.test.ts)
+  backup.ts             # entry for npm run backup
+  services/healthService.ts  # checkHealth() for GET /api/health (server answers + DB readable)
+deploy/                 # squash.service (systemd), squash-backup.service/.timer (04:00), Caddyfile (HTTPS), deploy.sh, SERVER_SETUP.md
   testHelpers.ts        # play(): record a bo5 match in one line, for tests
   db.ts                 # openDatabase + schema + all SQL. No business logic
   validation.ts         # isValidScore (pure)
@@ -130,7 +136,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 100 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 110 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
@@ -138,4 +144,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.
-- Next: TODO.md section 4, milestone W5 (hosting), together with "Hosting + README". Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Production setup ready (W5a): build, Fastify serves the site, health check, login/sign-up rate limit (10 per 15 min per IP, separate per route), backups, deploy files.
+- **Production layout (Hetzner, Ubuntu 24.04):** user `squash`, code in `/home/squash/SquashBot`, data + backups in `/home/squash/data`,
+  systemd `squash.service` (only `/home/squash/data` writable), Caddy on 443 → `127.0.0.1:3000` (`trustProxy: true`).
+- Next: W5b, the user sets up the server with `deploy/SERVER_SETUP.md`. Then README. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.

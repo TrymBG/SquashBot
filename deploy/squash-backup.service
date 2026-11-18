@@ -1,0 +1,13 @@
+# One database backup (run by squash-backup.timer). Run by hand: sudo systemctl start squash-backup
+[Unit]
+Description=Squash Ladder database backup
+
+[Service]
+Type=oneshot
+User=squash
+WorkingDirectory=/home/squash/SquashBot
+ExecStart=/usr/bin/node --env-file=.env dist/backup.js
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/squash/data

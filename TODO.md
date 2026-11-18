@@ -71,8 +71,10 @@ Milestones:
 - [x] W4 Frontend: "register result" form, "waiting for your confirmation" list
   - `/results` page; score picked from valid results only (`web/src/scores.ts`); "Results (n)" badge in the header.
     Friends can now use the site end to end on localhost. Next: W5 hosting, so they can use it for real
-- [ ] W5 Hosting (HTTPS is needed for `Secure` cookies), see "Hosting + README"
-- [ ] Later: rate-limit login (`@fastify/rate-limit`), "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
+- [ ] W5 Hosting on a Hetzner VPS (HTTPS is needed for `Secure` cookies), see "Hosting + README"
+  - [x] W5a code: `npm run build`/`start`/`backup`, Fastify serves `web/dist`, `/api/health`, login + sign-up rate limit, `deploy/` files + `SERVER_SETUP.md`
+  - [ ] W5b server: follow `deploy/SERVER_SETUP.md` (user runs it)
+- [ ] Later: "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
 
 ## Project setup
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
@@ -93,11 +95,13 @@ Milestones:
 - [ ] All user input validated
 
 ## Hosting + README
-- [ ] Pick a host that keeps the SQLite file on a persistent disk (Raspberry Pi, small VPS, Fly.io with a volume, …)
-- [ ] Run it with a process manager so it restarts on crash
-- [ ] API listens on `127.0.0.1` (Fastify default). On a host, listen on `0.0.0.0` (add a `HOST` option in `config.ts`)
-- [ ] `npm audit`: 1 high in `undici`, pulled in by `discord.js`. Check if a newer `discord.js` fixes it
-- [ ] Back up the database file (a simple copy job counts)
+- [x] Pick a host that keeps the SQLite file on a persistent disk: Hetzner VPS (decided 2026-11-18)
+- [x] Run it with a process manager so it restarts on crash: systemd (`deploy/squash.service`, `Restart=always`)
+- [x] ~~Listen on `0.0.0.0`~~ Not needed: the app stays on `127.0.0.1:3000`, only Caddy is public and proxies to it
+- [x] `npm audit`: `npm audit fix` updated `undici` 6.29.0 → 6.29.1, 0 vulnerabilities
+- [x] Back up the database file: `npm run backup` (`VACUUM INTO`, keeps 14), nightly via `deploy/squash-backup.timer`
+- [ ] Buy a domain (until then `<ip-with-dashes>.sslip.io`)
+- [ ] Off-server backup copy (Hetzner Backups, or download one now and then)
 - [ ] README: what it does, screenshots, how to run it, design decisions and tradeoffs
 - [ ] Friends are using it while my laptop is off
 

@@ -6,6 +6,7 @@ import { getUserForSession, login, logout, SESSION_DAYS, signup, type PublicUser
 export interface AuthOptions {
   inviteCode: string | null; // null = sign-up closed
   cookieSecure: boolean; // true in production: the cookie is only sent over HTTPS
+  rateLimit: { max: number; timeWindowMs: number }; // attempts per IP per window, for login and for sign-up (separately)
 }
 
 const SESSION_COOKIE = "session";
@@ -69,6 +70,15 @@ export function loggedInUser(request: FastifyRequest): PublicUser {
 }
 
 export async function authRoutes(app: FastifyInstance, options: AuthOptions): Promise<void> {
+  // Too many attempts from one IP → 429 for the rest of the window, which slows down password guessing.
+  // Login and sign-up each have their own counter: @fastify/rate-limit gives every route with its own settings a
+  // separate store (`groupId` only groups keys inside one store). The `error` text is what the website's forms show.
+  const rateLimit = {
+    max: options.rateLimit.max,
+    timeWindow: options.rateLimit.timeWindowMs,
+    errorResponseBuilder: () => ({ statusCode: 429, error: "Too many attempts. Try again in a few minutes." }),
+  };
+
   // httpOnly: page JavaScript can't read the cookie, so an XSS bug can't steal the session.
   // sameSite "lax": the browser doesn't send it on POSTs from other sites, which protects against CSRF.
   function setSessionCookie(reply: FastifyReply, token: string): void {
@@ -83,7 +93,7 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
 
   app.post<{ Body: { email: string; password: string; displayName: string; inviteCode: string } }>(
     "/api/signup",
-    { schema: { body: signupBody } },
+    { schema: { body: signupBody }, config: { rateLimit } },
     async (request, reply) => {
       const result = await signup(request.body, options.inviteCode);
       if (!result.ok) {
@@ -97,7 +107,7 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
 
   app.post<{ Body: { email: string; password: string } }>(
     "/api/login",
-    { schema: { body: loginBody } },
+    { schema: { body: loginBody }, config: { rateLimit } },
     async (request, reply) => {
       const result = await login(request.body.email, request.body.password);
       if (!result.ok) {

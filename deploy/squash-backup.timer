@@ -1,0 +1,11 @@
+# Runs squash-backup.service every night at 04:00 (server time). Persistent: if the server was off at 04:00,
+# the backup runs as soon as it's back. Check: systemctl list-timers squash-backup
+[Unit]
+Description=Nightly Squash Ladder database backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

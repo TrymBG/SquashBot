@@ -1,0 +1,10 @@
+# Caddy: the only public web server. Gets and renews the HTTPS certificate by itself, and passes requests on to the
+# app on 127.0.0.1:3000 (which isn't reachable from outside).
+# Install: copy to /etc/caddy/Caddyfile, replace the address below with yours, then: sudo systemctl reload caddy
+#   No domain yet: use <your-ip-with-dashes>.sslip.io, e.g. 65-21-1-2.sslip.io for the IP 65.21.1.2
+#   Own domain later: point an A record at the server's IP and put the domain here instead.
+
+squash.example.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:3000
+}

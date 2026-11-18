@@ -1,5 +1,8 @@
 // Tests for the website API, using `inject` (a fake HTTP request, no real port) and a fresh in-memory database.
-import { beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { openDatabase } from "../db.js";
 import { play } from "../testHelpers.js";
@@ -124,5 +127,60 @@ describe("GET /api/h2h/:id/:opponentId", () => {
     const { status } = await get("/api/h2h/trym/nobody");
 
     assert.equal(status, 404);
+  });
+});
+
+describe("GET /api/health", () => {
+  it("answers ok when the database can be read", async () => {
+    const response = await buildServer().inject({ method: "GET", url: "/api/health" });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.json(), { ok: true });
+  });
+});
+
+describe("serving the built website (production)", () => {
+  let webDir: string;
+
+  beforeEach(() => {
+    webDir = mkdtempSync(join(tmpdir(), "squash-web-test-"));
+    mkdirSync(join(webDir, "assets"));
+    writeFileSync(join(webDir, "index.html"), "<!doctype html><title>Squash Ladder</title>");
+    writeFileSync(join(webDir, "assets", "app.js"), "console.log('app')");
+  });
+
+  afterEach(() => {
+    rmSync(webDir, { recursive: true, force: true });
+  });
+
+  function get(url: string, webDistPath: string | null = webDir) {
+    return buildServer({ webDistPath }).inject({ method: "GET", url });
+  }
+
+  it("serves index.html for the front page and for app routes like /players/:id (so a reload works)", async () => {
+    for (const url of ["/", "/players/seed-2", "/results"]) {
+      const response = await get(url);
+      assert.equal(response.statusCode, 200, url);
+      assert.match(response.headers["content-type"] as string, /text\/html/, url);
+      assert.match(response.body, /Squash Ladder/, url);
+    }
+  });
+
+  it("serves built files as they are", async () => {
+    const response = await get("/assets/app.js");
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body, "console.log('app')");
+  });
+
+  it("still answers JSON for the API, and a JSON 404 for unknown API routes", async () => {
+    assert.equal((await get("/api/leaderboard")).statusCode, 200);
+    const missing = await get("/api/nope");
+    assert.equal(missing.statusCode, 404);
+    assert.deepEqual(missing.json(), { error: "Not found" });
+  });
+
+  it("serves no website when no folder is configured (dev: Vite does it)", async () => {
+    assert.equal((await get("/players/seed-2", null)).statusCode, 404);
   });
 });

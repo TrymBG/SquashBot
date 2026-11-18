@@ -2,6 +2,7 @@
 // Each route declares a schema for its input. Fastify checks it before the handler runs and answers 400 if it doesn't
 // match, and it converts query strings like "20" to numbers.
 import type { FastifyInstance } from "fastify";
+import { checkHealth } from "../services/healthService.js";
 import { getHeadToHead, getLeaderboard, getPlayerMatches, getPlayerProfile } from "../services/statsService.js";
 
 // Discord ids (up to 20 digits) or web players' UUIDs (36 characters).
@@ -30,6 +31,8 @@ const headToHeadParams = {
 const notFound = { error: "Player not found" };
 
 export async function apiRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/api/health", async () => checkHealth());
+
   app.get("/api/leaderboard", async () => getLeaderboard());
 
   app.get<{ Params: { id: string } }>("/api/players/:id", { schema: { params: playerParams } }, async (request, reply) => {

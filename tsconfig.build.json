@@ -1,0 +1,13 @@
+{
+  // Production build: compiles src/ to dist/ as plain JavaScript (`npm run build`), run with `npm start`.
+  // Same settings as tsconfig.json, which stays type-check only (`npm run typecheck`).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  // Tests and their helpers aren't needed to run the app.
+  "exclude": ["src/**/*.test.ts", "src/testHelpers.ts"]
+}
