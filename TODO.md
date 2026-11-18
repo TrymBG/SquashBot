@@ -66,7 +66,8 @@ Milestones:
   - Set `INVITE_CODE=...` in `.env` to open sign-up (unset = closed). Protect W3 routes with `currentUser(request)` from `api/authRoutes.ts`
 - [x] W2 Frontend auth: sign-up and login pages, header shows who's logged in, logout
   - Invite link for friends: `/signup?code=<INVITE_CODE>` pre-fills the code
-- [ ] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
+- [x] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
+  - Also: reporter can cancel, `GET /api/opponents`, optional `playedAt` (≤ 30 days back), reentrant `transaction()`, `requireLogin` hook (401 before validation)
 - [ ] W4 Frontend: "register result" form, "waiting for your confirmation" list
 - [ ] W5 Hosting (HTTPS is needed for `Secure` cookies), see "Hosting + README"
 - [ ] Later: rate-limit login (`@fastify/rate-limit`), "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
@@ -99,6 +100,8 @@ Milestones:
 - [ ] Friends are using it while my laptop is off
 
 ## Later / ideas
+- [ ] Expire old pending reports (e.g. auto-reject after 7 days) if they pile up
+- [ ] Discord `/undo` can undo a match confirmed on the website: decide if web users should get their own undo (or lose Discord undo)
 - [ ] Frontend tests: Vitest + Testing Library for the forms (renders, shows server error, disables while sending)
 - [ ] Frontend bundle is >500 kB (mostly Recharts): lazy-load the profile page with `React.lazy` if load time becomes noticeable
 - [ ] Seasons: replay only the matches within a date range

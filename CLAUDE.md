@@ -47,8 +47,9 @@ src/
   api/                  # website API (thin like commands/: call a service, return JSON)
     server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
     routes.ts           # GET /api/leaderboard, /api/players/:id(/matches), /api/h2h/:id/:opponentId (Fastify schemas validate input)
-    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; currentUser(request) for protected routes
-    server.test.ts, authRoutes.test.ts
+    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
+    reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports, POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
+    server.test.ts, authRoutes.test.ts, reportRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
     ping.ts, result.ts, leaderboard.ts, undo.ts   # stats.ts, h2h.ts are empty placeholders
@@ -59,6 +60,9 @@ src/
     statsService.test.ts
     authService.ts      # signup (invite code), login, logout, getUserForSession; `now` parameter for testable expiry
     authService.test.ts
+    reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
+    reportService.test.ts
+  db.test.ts            # reentrant transaction()
   testHelpers.ts        # play(): record a bo5 match in one line, for tests
   db.ts                 # openDatabase + schema + all SQL. No business logic
   validation.ts         # isValidScore (pure)
@@ -84,7 +88,7 @@ web/
 - `elo.ts` is pure math with no imports, tested in isolation.
 
 ## Database design
-- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed).
+- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept).
 - Web players get a UUID as player id (36 chars; Discord ids are numeric), so route schemas allow ids up to 64 chars.
 - Players are identified by Discord user ID, stored as TEXT (64-bit, unsafe as a JS `number`).
 - `players.display_name` and `players.avatar_url` are refreshed every time the player plays, so the website never calls Discord. `avatar_url` can be NULL (seed players).
@@ -92,7 +96,7 @@ web/
 - `matches` stores raw data: `winner_id`, `loser_id`, both game scores, `format`, `reported_by`, `played_at`.
 - `rating_history` has `match_id`, `player_id`, `rating_before`, `rating_after` (the difference gives "+16"). Rows cascade-delete with their match.
 - Timestamps are UTC ISO strings. Convert to Norwegian time only when displaying.
-- Multi-table writes go inside `transaction()` in `db.ts` (all or nothing).
+- Multi-table writes go inside `transaction()` in `db.ts` (all or nothing). It's reentrant: a nested call joins the outer transaction (SQLite refuses a nested `BEGIN`), e.g. `confirmReport` → `recordMatch`.
 - The DB is opened explicitly with `openDatabase(path)`. Tests use `":memory:"`, a fresh database per test.
 - Migrations: `CREATE TABLE IF NOT EXISTS` never changes an existing table, so new columns are added with `addColumnIfMissing` in `initSchema`. Switch to numbered migrations if they pile up.
 
@@ -110,7 +114,8 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 ## Design decisions
 - **Match formats:** Best of 1, Best of 3, Best of 5, First to 6 (win by 2: 6-0…6-4, then 7-5, 8-6, …). `/result` takes `opponent`, `format` (choices), `my_games`, `their_games` (from the reporter's view). Score rules live in `validation.ts`.
 - **`/undo`:** only the most recent match, after a confirmation button. It deletes the match, then **recomputes all ratings from scratch** with `replayMatches` (everyone back to 1000, replay every remaining match ordered by `id`, rewrite `rating_history` and `players.rating`). The same replay works for rule changes and future seasons. Anyone can undo for now (`canUndo`).
-- Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie).
+- Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie). For web reports that means confirmation order, even if `played_at` is earlier.
+- **Web result reporting (W3):** only against players with a web account (they must confirm). Only the opponent confirms/rejects, only the reporter cancels, only while pending. Reports you're not part of give 404. Protected routes use the `requireLogin` onRequest hook, so a logged-out request gets 401 before body validation.
 - `recordMatch` accepts an optional `playedAt` (defaults to now). Used by the seed script, and later by an optional date on `/result`.
 - Website: API in the same process as the bot (one deploy). SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
 - **Web accounts (W1 done, rest in TODO.md section 4):** email + password (scrypt from `node:crypto`), session token in an httpOnly cookie, invite code required to sign up. A `users` row links to a `players` row, so Discord players and web players share all stats code. Web-reported results wait in `match_reports` until the opponent confirms; confirming calls `recordMatch`, so the rating logic is unchanged.
@@ -123,10 +128,11 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 78 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 100 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
-- Next: TODO.md section 4, milestone W3 (report results API with opponent confirmation). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
+- Next: TODO.md section 4, milestone W4 (register-result form + "waiting for your confirmation" list). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.

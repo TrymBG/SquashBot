@@ -36,9 +36,36 @@ const signupErrors = {
   "email-taken": { status: 409, error: "That email is already registered" },
 } as const;
 
-// The logged-in user for a request, or undefined. Later routes that need a login (W3) use this.
+// The logged-in user for a request, or undefined.
 export function currentUser(request: FastifyRequest): PublicUser | undefined {
   return getUserForSession(request.cookies[SESSION_COOKIE]);
+}
+
+// Adds a `user` field to Fastify's request type ("declaration merging": we extend the library's interface).
+// It's set by requireLogin below, for routes that use it.
+declare module "fastify" {
+  interface FastifyRequest {
+    user: PublicUser | null;
+  }
+}
+
+// An onRequest hook for routes that need a login, like a Spring Security filter in front of the controllers.
+// It runs before body validation, so someone who isn't logged in always gets 401 and learns nothing about the input rules.
+// Use in a plugin: app.decorateRequest("user", null); app.addHook("onRequest", requireLogin);
+export async function requireLogin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const user = currentUser(request);
+  if (!user) {
+    return reply.code(401).send({ error: "Not logged in" });
+  }
+  request.user = user;
+}
+
+// The logged-in user inside a route protected by requireLogin.
+export function loggedInUser(request: FastifyRequest): PublicUser {
+  if (!request.user) {
+    throw new Error("loggedInUser() used on a route without the requireLogin hook");
+  }
+  return request.user;
 }
 
 export async function authRoutes(app: FastifyInstance, options: AuthOptions): Promise<void> {
