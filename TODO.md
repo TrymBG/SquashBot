@@ -68,7 +68,9 @@ Milestones:
   - Invite link for friends: `/signup?code=<INVITE_CODE>` pre-fills the code
 - [x] W3 Report results API: `POST /api/reports` (validated with `isValidScore`), list my pending, confirm (→ `recordMatch`) / reject, only the opponent can confirm, tests
   - Also: reporter can cancel, `GET /api/opponents`, optional `playedAt` (≤ 30 days back), reentrant `transaction()`, `requireLogin` hook (401 before validation)
-- [ ] W4 Frontend: "register result" form, "waiting for your confirmation" list
+- [x] W4 Frontend: "register result" form, "waiting for your confirmation" list
+  - `/results` page; score picked from valid results only (`web/src/scores.ts`); "Results (n)" badge in the header.
+    Friends can now use the site end to end on localhost. Next: W5 hosting, so they can use it for real
 - [ ] W5 Hosting (HTTPS is needed for `Secure` cookies), see "Hosting + README"
 - [ ] Later: rate-limit login (`@fastify/rate-limit`), "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
 

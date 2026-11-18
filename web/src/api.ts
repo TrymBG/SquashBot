@@ -138,3 +138,63 @@ export async function login(input: { email: string; password: string }): Promise
 export function logout(): Promise<void> {
   return postJson('/api/logout')
 }
+
+// A web player you can report a result against (copy of OpponentRow in the backend).
+export interface Opponent {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  rating: number
+}
+
+// A reported result (copy of ReportRow in the backend). Scores are from the reporter's side.
+export interface Report {
+  id: number
+  reporterId: string
+  reporterName: string
+  opponentId: string
+  opponentName: string
+  format: string
+  reporterGames: number
+  opponentGames: number
+  playedAt: string
+  status: 'pending' | 'confirmed' | 'rejected' | 'cancelled'
+  createdAt: string
+}
+
+export interface ReportLists {
+  incoming: Report[] // waiting for me to confirm
+  outgoing: Report[] // waiting for my opponents
+}
+
+export interface ReportInput {
+  opponentId: string
+  format: string
+  myGames: number
+  opponentGames: number
+  playedAt?: string // UTC ISO timestamp; left out = now
+}
+
+export function fetchOpponents(): Promise<Opponent[]> {
+  return getJson('/api/opponents')
+}
+
+export function fetchReports(): Promise<ReportLists> {
+  return getJson('/api/reports')
+}
+
+export async function createReport(input: ReportInput): Promise<Report> {
+  return (await postJson<{ report: Report }>('/api/reports', input)).report
+}
+
+export function confirmReport(id: number): Promise<{ matchId: number }> {
+  return postJson(`/api/reports/${id}/confirm`)
+}
+
+export function rejectReport(id: number): Promise<void> {
+  return postJson(`/api/reports/${id}/reject`)
+}
+
+export function cancelReport(id: number): Promise<void> {
+  return postJson(`/api/reports/${id}/cancel`)
+}

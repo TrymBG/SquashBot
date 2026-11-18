@@ -77,8 +77,10 @@ web/
     api.ts              # response types + fetch functions (getJson/postJson; ApiError carries the server's error text)
     auth.ts             # useCurrentUser (query ['me']), useLogin/useSignup/useLogout (mutations that update ['me'])
     format.ts           # display formatting: rounding, "+16", dates in Norwegian time
-    pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code)
-    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, TextField
+    reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations
+    scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
+    pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login)
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, TextField, ReportForm, ReportList
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -135,4 +137,5 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
-- Next: TODO.md section 4, milestone W4 (register-result form + "waiting for your confirmation" list). Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
+- Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.
+- Next: TODO.md section 4, milestone W5 (hosting), together with "Hosting + README". Plan it in plan mode first. Remaining bot commands `/stats` and `/h2h` come after, as thin wrappers around the services the website builds.
