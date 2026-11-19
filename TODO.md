@@ -107,6 +107,8 @@ Each milestone planned in plan mode.
 - [x] Unranked matches and tournaments: in history, never change ratings; leaderboard W–L counts rated matches only
 - [ ] Organizer can end a tournament early (until then, an unfinished ranked tournament's matches never count)
 - [ ] D1 Design pass (user has input, discuss first)
+  - [x] Step 1: design tokens in `index.css` + matte charcoal palette, squash-ball yellow accent
+  - [ ] Next steps (decide together): fonts/type scale, spacing/density, header and leaderboard layout, logo
 - [ ] Invite friends (after W5b hosting)
 
 ## Project setup

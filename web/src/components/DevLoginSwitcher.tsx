@@ -16,7 +16,7 @@ export default function DevLoginSwitcher() {
       value={currentUser?.playerId ?? ''}
       disabled={loginAs.isPending}
       onChange={(e) => e.target.value && loginAs.mutate(e.target.value)}
-      className="rounded border border-dashed border-amber-700 bg-slate-950 px-2 py-1 text-xs text-amber-300"
+      className="rounded border border-dashed border-accent/60 bg-canvas px-2 py-1 text-xs text-accent"
     >
       <option value="">Dev: log in as…</option>
       {users.data.map((u) => (

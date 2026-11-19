@@ -22,7 +22,7 @@ function playedAtFor(dateString: string): string | undefined {
 }
 
 const selectClass =
-  'w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-sky-500'
+  'w-full rounded border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-accent'
 
 export default function ReportForm() {
   const opponents = useOpponents()
@@ -41,10 +41,10 @@ export default function ReportForm() {
   const [unranked, setUnranked] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null) // name shown in the "sent" message
 
-  if (opponents.isPending) return <p className="text-slate-400">Loading players…</p>
-  if (opponents.isError) return <p className="text-red-400">Could not load the players.</p>
+  if (opponents.isPending) return <p className="text-muted">Loading players…</p>
+  if (opponents.isError) return <p className="text-loss">Could not load the players.</p>
   if (opponents.data.length === 0) {
-    return <p className="text-slate-400">Nobody else has an account yet. Send your friends the invite link.</p>
+    return <p className="text-muted">Nobody else has an account yet. Send your friends the invite link.</p>
   }
 
   const results = validResults(format)
@@ -79,7 +79,7 @@ export default function ReportForm() {
   return (
     <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Opponent</span>
+        <span className="mb-1 block text-sm text-muted">Opponent</span>
         <select required value={opponentId} onChange={(e) => setOpponentId(e.target.value)} className={selectClass}>
           <option value="" disabled>
             Choose a player…
@@ -93,7 +93,7 @@ export default function ReportForm() {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Format</span>
+        <span className="mb-1 block text-sm text-muted">Format</span>
         <select
           value={format}
           onChange={(e) => {
@@ -111,7 +111,7 @@ export default function ReportForm() {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Result (your score first)</span>
+        <span className="mb-1 block text-sm text-muted">Result (your score first)</span>
         <select value={resultIndex} onChange={(e) => setResultIndex(Number(e.target.value))} className={selectClass}>
           {results.map((r, index) => (
             <option key={r.label} value={index}>
@@ -122,7 +122,7 @@ export default function ReportForm() {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Played on</span>
+        <span className="mb-1 block text-sm text-muted">Played on</span>
         <input
           type="date"
           required
@@ -137,18 +137,18 @@ export default function ReportForm() {
       <label className="flex items-center gap-2 sm:col-span-2">
         <input type="checkbox" checked={unranked} onChange={(e) => setUnranked(e.target.checked)} />
         <span className="text-sm">Unranked</span>
-        <span className="text-sm text-slate-400">(shows in your history, doesn't change ratings)</span>
+        <span className="text-sm text-muted">(shows in your history, doesn't change ratings)</span>
       </label>
 
       <div className="sm:col-span-2">
-        {createMutation.error && <p className="mb-2 text-sm text-rose-400">{createMutation.error.message}</p>}
+        {createMutation.error && <p className="mb-2 text-sm text-loss">{createMutation.error.message}</p>}
         {sentTo && !createMutation.error && (
-          <p className="mb-2 text-sm text-emerald-400">Sent to {sentTo} for confirmation.</p>
+          <p className="mb-2 text-sm text-win">Sent to {sentTo} for confirmation.</p>
         )}
         <button
           type="submit"
           disabled={createMutation.isPending}
-          className="rounded bg-sky-600 px-4 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50"
+          className="rounded bg-accent text-on-accent px-4 py-2 font-semibold hover:bg-accent-hover disabled:opacity-50"
         >
           {createMutation.isPending ? 'Sending…' : 'Send for confirmation'}
         </button>

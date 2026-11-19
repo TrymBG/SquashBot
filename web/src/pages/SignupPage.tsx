@@ -47,18 +47,18 @@ export default function SignupPage() {
           onValueChange={setPassword}
         />
         <TextField label="Invite code" required value={inviteCode} onValueChange={setInviteCode} />
-        {signupMutation.error && <p className="text-sm text-rose-400">{signupMutation.error.message}</p>}
+        {signupMutation.error && <p className="text-sm text-loss">{signupMutation.error.message}</p>}
         <button
           type="submit"
           disabled={signupMutation.isPending}
-          className="w-full rounded bg-sky-600 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50"
+          className="w-full rounded bg-accent text-on-accent py-2 font-semibold hover:bg-accent-hover disabled:opacity-50"
         >
           {signupMutation.isPending ? 'Creating account…' : 'Create account'}
         </button>
       </form>
-      <p className="mt-6 text-sm text-slate-400">
+      <p className="mt-6 text-sm text-muted">
         Already have an account?{' '}
-        <Link to="/login" className="text-sky-400 hover:underline">
+        <Link to="/login" className="text-accent hover:underline">
           Log in
         </Link>
       </p>

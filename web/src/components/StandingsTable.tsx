@@ -6,7 +6,7 @@ import type { StandingRow, TournamentRanking } from '../api.ts'
 export default function StandingsTable({ rows, ranking }: { rows: StandingRow[]; ranking: TournamentRanking }) {
   return (
     <table className="w-full text-left text-sm">
-      <thead className="text-slate-400">
+      <thead className="text-muted">
         <tr>
           <th className="w-10 py-2">#</th>
           <th className="py-2">Player</th>
@@ -20,8 +20,8 @@ export default function StandingsTable({ rows, ranking }: { rows: StandingRow[];
         {rows.map((row) => {
           const difference = row.scoreFor - row.scoreAgainst
           return (
-            <tr key={row.playerId} className="border-t border-slate-800">
-              <td className="py-2 text-slate-400">{row.position}</td>
+            <tr key={row.playerId} className="border-t border-line">
+              <td className="py-2 text-muted">{row.position}</td>
               <td className="py-2">
                 <Link to={`/players/${row.playerId}`} className="hover:underline">
                   {row.displayName}

@@ -2,7 +2,7 @@
 import type { Result } from '../api.ts'
 
 export default function ResultBadge({ result }: { result: Result }) {
-  const colors = result === 'W' ? 'bg-emerald-600' : 'bg-rose-600'
+  const colors = result === 'W' ? 'bg-win-strong' : 'bg-loss-strong'
   return (
     <span className={`inline-flex size-6 items-center justify-center rounded text-xs font-bold ${colors}`}>
       {result}

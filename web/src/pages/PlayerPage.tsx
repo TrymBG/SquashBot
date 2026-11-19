@@ -19,9 +19,9 @@ export default function PlayerPage() {
     queryFn: () => fetchPlayerProfile(id),
   })
 
-  if (isPending) return <p className="text-slate-400">Loading…</p>
+  if (isPending) return <p className="text-muted">Loading…</p>
   if (isNotFound(error)) return <NotFound />
-  if (error) return <p className="text-red-400">Could not load this player. Is the API running?</p>
+  if (error) return <p className="text-loss">Could not load this player. Is the API running?</p>
 
   const played = profile.wins + profile.losses
 
@@ -33,18 +33,18 @@ export default function PlayerPage() {
 
   return (
     <div className="space-y-8">
-      <Link to="/" className="text-sm text-slate-400 hover:underline">
+      <Link to="/" className="text-sm text-muted hover:underline">
         ← Leaderboard
       </Link>
 
       <ProfileHeader profile={profile} />
 
       {played === 0 ? (
-        <p className="text-slate-400">No matches yet.</p>
+        <p className="text-muted">No matches yet.</p>
       ) : (
         <>
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Recent form</h2>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Recent form</h2>
             <div className="flex gap-1">
               {profile.recentForm.map((result, index) => (
                 <ResultBadge key={index} result={result} />
@@ -53,13 +53,13 @@ export default function PlayerPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Rating</h2>
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Rating</h2>
             <RatingChart history={profile.ratingHistory} />
           </section>
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Matches</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Matches</h2>
               <MatchFilters opponents={profile.opponents} />
             </div>
             {/* The record against the chosen opponent, over all their matches (not just the loaded page). */}
@@ -85,7 +85,7 @@ function ProfileHeader({ profile }: { profile: PlayerProfile }) {
       <div className="flex-1">
         <h1 className="text-2xl font-bold">{profile.displayName}</h1>
         {profile.position !== null && (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             #{profile.position} of {profile.rankedPlayers}
           </p>
         )}
@@ -106,7 +106,7 @@ function ProfileHeader({ profile }: { profile: PlayerProfile }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-slate-400">{label}</dt>
+      <dt className="text-muted">{label}</dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
   )
@@ -115,8 +115,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 function NotFound() {
   return (
     <div className="space-y-4">
-      <p className="text-slate-400">Player not found.</p>
-      <Link to="/" className="text-sm text-slate-400 hover:underline">
+      <p className="text-muted">Player not found.</p>
+      <Link to="/" className="text-sm text-muted hover:underline">
         ← Leaderboard
       </Link>
     </div>

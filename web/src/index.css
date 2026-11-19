@@ -1,1 +1,32 @@
 @import "tailwindcss";
+
+/* Design tokens: every colour the site uses, named by its role. Tailwind 4 turns each --color-x into utilities
+   (bg-x, text-x, border-x, …, with opacity like bg-accent/10), so the whole look is changed here, in one place.
+   Palette: matte neutral charcoal (no blue tint) with squash-ball yellow as the accent. */
+@theme {
+  --color-canvas: #1c1c1e; /* page background */
+  --color-surface: #262628; /* inputs, cards, highlighted rows */
+  --color-surface-hover: #2f2f32; /* hover backgrounds */
+  --color-line: #333336; /* dividers, header border */
+  --color-line-strong: #48484c; /* input and button borders, avatar circles */
+
+  --color-ink: #e8e8e6; /* main text */
+  --color-soft: #c8c8c5; /* secondary text */
+  --color-muted: #9a9a97; /* labels, meta text */
+  --color-faint: #6e6e6b; /* very quiet text: "vs", TBD */
+
+  --color-accent: #e3c13b; /* squash-ball yellow: primary buttons, links, focus, highlights */
+  --color-accent-hover: #ecd063;
+  --color-on-accent: #1c1c1e; /* text on yellow: light text on yellow is unreadable */
+
+  --color-win: #7fbf8a; /* win text */
+  --color-win-strong: #3f6b47; /* W badges, Confirm buttons */
+  --color-loss: #d07a70; /* loss text, error messages */
+  --color-loss-strong: #8f4a43; /* L badges, the results count badge */
+}
+
+/* The browser's own parts (scrollbars, date pickers, checkboxes) in dark mode, and no white flash behind the page. */
+html {
+  color-scheme: dark;
+  background-color: var(--color-canvas);
+}
