@@ -18,13 +18,15 @@ It is a learning and portfolio project: I must be able to explain every part in 
 ## Commands
 - `npm run dev`: run the bot and the API together (reads `.env`)
 - `npm run api`: run only the API, no Discord token needed (`DATABASE_PATH=seed.db npm run api` for fake data)
-- `npm run dev:web`: API on `seed.db` + frontend together in one terminal (Ctrl+C stops both). The usual way to work on the website
+- `npm run dev:web`: API on `seed.db` + frontend together in one terminal (Ctrl+C stops both). The usual way to work on the website.
+  Sets `DEV_LOGIN=1`: a dev-only "Log in as…" switcher in the header (never in production; `config.devLoginEnabled` has two locks)
 - `npm run web`: run only the frontend dev server on http://localhost:5173 (needs the API running; `/api` is proxied to port 3000). Listens on all addresses (`host: true`) so the Windows browser can reach it from WSL
 - In `web/`: `npm run typecheck`, `npm run lint` (oxlint), `npm run build`. Run these too after frontend changes
 - `npm run deploy`: register slash commands with the test server (after adding/changing a command)
 - `npm test`: unit tests (`node:test` via tsx, files `src/**/*.test.ts`)
 - `npm run typecheck`: `tsc --noEmit` (tsx does not type-check)
-- `npm run seed`: fresh `seed.db` with 6 fake players and 120 matches over 90 days (deterministic)
+- `npm run seed`: fresh `seed.db` with 6 fake players and 120 matches over 90 days (deterministic); the players also get web accounts
+  (`seed1@example.com` … `seed6@example.com`, password `password`)
 - Production: `npm run build` (backend `tsc -p tsconfig.build.json` → `dist/`, plus `web/dist`), `npm start` (bot + API + website from `dist/`),
   `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
 - `DATABASE_PATH=seed.db npm run dev`: run the bot on the fake data
@@ -52,6 +54,7 @@ src/
     authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start
+    devRoutes.ts        # dev only: GET /api/dev/users, POST /api/dev/login-as (registered only when config.devLogin; 404 otherwise)
     server.test.ts, authRoutes.test.ts, reportRoutes.test.ts, tournamentRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)

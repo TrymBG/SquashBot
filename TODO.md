@@ -102,6 +102,8 @@ Each milestone planned in plan mode.
       active: standings + schedule by round, report/confirm/reject/cancel right on the match); 🏆 label in /results and on profiles
   - [x] Knockout bracket view (columns per round, sideways scroll on phones)
 - [ ] Later: groups → knockout (round-robin groups, top players into a bracket), double round robin
+- [x] Dev "Log in as…" (DEV_LOGIN=1, never in production) + seed players with web accounts, for testing tournaments
+- [ ] Tournament matches count for Elo only when the tournament ends (decided 2026-11-20); then: organizer can end a tournament early
 - [ ] D1 Design pass (user has input, discuss first)
 - [ ] Invite friends (after W5b hosting)
 

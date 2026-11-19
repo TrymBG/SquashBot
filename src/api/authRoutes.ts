@@ -69,6 +69,19 @@ export function loggedInUser(request: FastifyRequest): PublicUser {
   return request.user;
 }
 
+// Sets the session cookie after a login (also used by the dev "Log in as…").
+// httpOnly: page JavaScript can't read the cookie, so an XSS bug can't steal the session.
+// sameSite "lax": the browser doesn't send it on POSTs from other sites, which protects against CSRF.
+export function setSessionCookie(reply: FastifyReply, token: string, secure: boolean): void {
+  reply.setCookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    path: "/",
+    maxAge: SESSION_DAYS * 24 * 60 * 60, // seconds
+  });
+}
+
 export async function authRoutes(app: FastifyInstance, options: AuthOptions): Promise<void> {
   // Too many attempts from one IP → 429 for the rest of the window, which slows down password guessing.
   // Login and sign-up each have their own counter: @fastify/rate-limit gives every route with its own settings a
@@ -79,17 +92,6 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
     errorResponseBuilder: () => ({ statusCode: 429, error: "Too many attempts. Try again in a few minutes." }),
   };
 
-  // httpOnly: page JavaScript can't read the cookie, so an XSS bug can't steal the session.
-  // sameSite "lax": the browser doesn't send it on POSTs from other sites, which protects against CSRF.
-  function setSessionCookie(reply: FastifyReply, token: string): void {
-    reply.setCookie(SESSION_COOKIE, token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: options.cookieSecure,
-      path: "/",
-      maxAge: SESSION_DAYS * 24 * 60 * 60, // seconds
-    });
-  }
 
   app.post<{ Body: { email: string; password: string; displayName: string; inviteCode: string } }>(
     "/api/signup",
@@ -100,7 +102,7 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
         const { status, error } = signupErrors[result.reason];
         return reply.code(status).send({ error });
       }
-      setSessionCookie(reply, result.sessionToken);
+      setSessionCookie(reply, result.sessionToken, options.cookieSecure);
       return reply.code(201).send({ user: result.user });
     },
   );
@@ -113,7 +115,7 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
       if (!result.ok) {
         return reply.code(401).send({ error: "Invalid email or password" });
       }
-      setSessionCookie(reply, result.sessionToken);
+      setSessionCookie(reply, result.sessionToken, options.cookieSecure);
       return { user: result.user };
     },
   );

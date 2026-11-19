@@ -5,8 +5,9 @@ import fastifyCookie from "@fastify/cookie";
 import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
-import { cookieSecure, inviteCode, webDistPath } from "../config.js";
+import { cookieSecure, devLogin, inviteCode, webDistPath } from "../config.js";
 import { authRoutes, type AuthOptions } from "./authRoutes.js";
+import { devRoutes } from "./devRoutes.js";
 import { reportRoutes } from "./reportRoutes.js";
 import { apiRoutes } from "./routes.js";
 import { tournamentPublicRoutes, tournamentRoutes } from "./tournamentRoutes.js";
@@ -16,6 +17,7 @@ export interface ServerOptions {
   cookieSecure?: boolean;
   webDistPath?: string | null; // folder with the built website, or null to serve only the API (dev: Vite serves it)
   authRateLimit?: AuthOptions["rateLimit"];
+  devLogin?: boolean; // dev-only "Log in as…" routes (never in production, see config.ts)
 }
 
 // Login attempts (and, separately, sign-up attempts) allowed per IP address in the time window. Slows down password guessing.
@@ -41,6 +43,9 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   app.register(reportRoutes);
   app.register(tournamentPublicRoutes); // viewing: no login
   app.register(tournamentRoutes); // creating and changing: behind requireLogin
+  if (options.devLogin ?? devLogin) {
+    app.register(devRoutes, { cookieSecure: auth.cookieSecure });
+  }
   if (websitePath) {
     serveWebsite(app, resolve(websitePath));
   }

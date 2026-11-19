@@ -1,8 +1,10 @@
 // Separate script: fills a database with fake players and matches, so the website has realistic data to show.
 // Run with: npm run seed  (writes seed.db, never squash.db). Run the bot on it with: DATABASE_PATH=seed.db npm run dev
+import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
-import { openDatabase } from "./db.js";
+import { insertUser, openDatabase } from "./db.js";
 import { expectedScore } from "./elo.js";
+import { hashPassword } from "./passwords.js";
 import { recordMatch } from "./services/matchService.js";
 import { isValidScore } from "./validation.js";
 
@@ -62,7 +64,10 @@ function randomScore(format: string): [number, number] {
   }
 }
 
-rmSync(DATABASE_PATH, { force: true }); // start from scratch every time
+// Start from scratch every time. The -wal/-shm side files go too: left behind, an old -wal could leak into the new file.
+for (const file of [DATABASE_PATH, `${DATABASE_PATH}-wal`, `${DATABASE_PATH}-shm`]) {
+  rmSync(file, { force: true });
+}
 openDatabase(DATABASE_PATH);
 
 const start = Date.now() - DAYS_OF_HISTORY * 24 * 60 * 60 * 1000;
@@ -94,4 +99,10 @@ for (let i = 0; i < MATCH_COUNT; i++) {
   });
 }
 
-console.log(`Seeded ${MATCH_COUNT} matches between ${PLAYERS.length} players into ${DATABASE_PATH}.`);
+// Web accounts for the fake players, so tournaments can be tested (dev "Log in as…", or seed1@example.com / password).
+const passwordHash = await hashPassword("password");
+PLAYERS.forEach((player, index) => {
+  insertUser(randomUUID(), `seed${index + 1}@example.com`, passwordHash, player.id);
+});
+
+console.log(`Seeded ${MATCH_COUNT} matches between ${PLAYERS.length} players (with web accounts) into ${DATABASE_PATH}.`);
