@@ -79,13 +79,13 @@ describe("getPlayerProfile", () => {
 
 describe("getPlayerMatches", () => {
   it("returns undefined for an unknown player", () => {
-    assert.equal(getPlayerMatches("nobody", 20), undefined);
+    assert.equal(getPlayerMatches("nobody", { limit: 20 }), undefined);
   });
 
   it("shows each match from the player's side", () => {
     const matchId = play("ola", "trym", 3, 2); // ola reports a win over trym
 
-    const [match] = getPlayerMatches("trym", 20)!.matches;
+    const [match] = getPlayerMatches("trym", { limit: 20 })!.matches;
 
     assert.equal(match!.matchId, matchId);
     assert.equal(match!.opponentId, "ola");
@@ -100,9 +100,9 @@ describe("getPlayerMatches", () => {
   it("pages newest first with a cursor until the last page", () => {
     const ids = [1, 2, 3, 4, 5].map(() => play("trym", "ola", 3, 0));
 
-    const page1 = getPlayerMatches("trym", 2)!;
-    const page2 = getPlayerMatches("trym", 2, page1.nextBefore!)!;
-    const page3 = getPlayerMatches("trym", 2, page2.nextBefore!)!;
+    const page1 = getPlayerMatches("trym", { limit: 2 })!;
+    const page2 = getPlayerMatches("trym", { limit: 2, before: page1.nextBefore! })!;
+    const page3 = getPlayerMatches("trym", { limit: 2, before: page2.nextBefore! })!;
 
     const seen = [...page1.matches, ...page2.matches, ...page3.matches].map((m) => m.matchId);
     assert.deepEqual(seen, ids.reverse());
@@ -140,5 +140,69 @@ describe("getHeadToHead", () => {
 
     assert.equal(h2h.player.wins, 7);
     assert.equal(h2h.recentMatches.length, 5);
+  });
+});
+
+describe("getPlayerMatches filters", () => {
+  it("filters by format", () => {
+    play("trym", "ola", 3, 0); // bo5
+    const bo3 = play("trym", "ola", 2, 1, "bo3");
+    play("trym", "kari", 1, 0, "bo1");
+
+    const page = getPlayerMatches("trym", { limit: 20, format: "bo3" })!;
+
+    assert.deepEqual(page.matches.map((m) => m.matchId), [bo3]);
+  });
+
+  it("combines opponent and format", () => {
+    play("trym", "ola", 2, 0, "bo3");
+    const wanted = play("trym", "ola", 3, 1); // bo5 vs ola
+    play("trym", "kari", 3, 2); // bo5 vs kari
+
+    const page = getPlayerMatches("trym", { limit: 20, opponentId: "ola", format: "bo5" })!;
+
+    assert.deepEqual(page.matches.map((m) => m.matchId), [wanted]);
+  });
+
+  it("pages through a filtered list without leaking other matches", () => {
+    const vsOla: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      vsOla.push(play("trym", "ola", 3, 0));
+      play("trym", "kari", 3, 0); // interleaved, must never show up
+    }
+
+    const page1 = getPlayerMatches("trym", { limit: 2, opponentId: "ola" })!;
+    const page2 = getPlayerMatches("trym", { limit: 2, opponentId: "ola", before: page1.nextBefore! })!;
+    const page3 = getPlayerMatches("trym", { limit: 2, opponentId: "ola", before: page2.nextBefore! })!;
+
+    const seen = [...page1.matches, ...page2.matches, ...page3.matches].map((m) => m.matchId);
+    assert.deepEqual(seen, vsOla.reverse());
+    assert.equal(page3.nextBefore, null);
+  });
+});
+
+describe("getPlayerProfile opponents", () => {
+  it("lists everyone the player has met, most played first, with the record from the player's side", () => {
+    play("trym", "ola", 3, 0); // W
+    play("ola", "trym", 3, 1); // L
+    play("trym", "ola", 3, 2); // W
+    play("kari", "trym", 3, 0); // L
+
+    const { opponents } = getPlayerProfile("trym")!;
+
+    assert.deepEqual(
+      opponents.map((o) => [o.id, o.displayName, o.played, o.wins, o.losses]),
+      [
+        ["ola", "ola", 3, 2, 1],
+        ["kari", "kari", 1, 0, 1],
+      ],
+    );
+  });
+
+  it("is empty for a player without matches", () => {
+    const matchId = play("trym", "ola", 3, 0);
+    undoMatch(matchId, "trym");
+
+    assert.deepEqual(getPlayerProfile("trym")!.opponents, []);
   });
 });

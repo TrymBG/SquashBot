@@ -76,6 +76,27 @@ Milestones:
   - [ ] W5b server: follow `deploy/SERVER_SETUP.md` (user runs it)
 - [ ] Later: "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
 
+## 5. Before inviting friends: features + design (decided 2026-11-19)
+Additions only (new tables, no changes to existing ones), so they don't block hosting. Order: filters → tournaments → design pass → invite.
+Each milestone planned in plan mode.
+- [x] F1 Match history filters on the profile: by opponent and format, kept in the URL; "vs Ola: 7–5" line; profile has `opponents`
+  - Left for later if wanted: date-range filter
+- [ ] T1 Tournaments, backend: `tournaments` (with `format`: knockout | round_robin), `tournament_players`, `tournament_matches` tables
+      (shared by both formats); create/add players/start API; reports get an optional tournament match link, confirming records the
+      match (counts for Elo via `recordMatch`) and updates the tournament
+  - Knockout: bracket logic as a pure function with tests (seeding, byes for non-power-of-2, who meets whom next); winner moves on
+  - Round robin: schedule as a pure function (circle method, everyone meets everyone **once**); standings ranked by
+    **wins, then head-to-head, then game difference**; matches can be played in any order
+  - Decided: two separate formats, picked when creating; 4–16 players; any logged-in user can create one (creator = organizer);
+    tournament matches count for Elo
+  - Candidates for writing by hand (like `elo.ts`): the bracket function, the round-robin schedule and the standings/tiebreak function
+  - Maybe split: T1a shared tables + knockout, T1b round robin (decide in plan mode)
+- [ ] T2 Tournaments, frontend: create (pick format), add players, start; bracket view (knockout) and schedule + standings table
+      (round robin); report a tournament match from there; "Tournament" label on profile matches
+- [ ] Later: groups → knockout (round-robin groups, top players into a bracket), double round robin
+- [ ] D1 Design pass (user has input, discuss first)
+- [ ] Invite friends (after W5b hosting)
+
 ## Project setup
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`
 - [x] Decide what goes in git: `CLAUDE.md`, `WORKFLOW.md`, `TODO.md` all committed (`claude.md` removed from `.gitignore`)

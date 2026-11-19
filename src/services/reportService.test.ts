@@ -92,7 +92,7 @@ describe("confirmReport", () => {
     const result = confirmReport(ola, pending.id, NOW);
 
     assert.ok(result.ok);
-    const [match] = getPlayerMatches(trym.playerId, 20)!.matches;
+    const [match] = getPlayerMatches(trym.playerId, { limit: 20 })!.matches;
     assert.equal(match!.matchId, result.matchId);
     assert.equal(match!.won, true);
     assert.equal(match!.myGames, 3);
@@ -139,7 +139,7 @@ describe("rejectReport and cancelReport", () => {
     assert.deepEqual(rejectReport(ola, pending.id, NOW), { ok: true });
     assert.deepEqual(confirmReport(ola, pending.id, NOW), { ok: false, reason: "not-pending" });
     assert.equal(rating(trym), STARTING_RATING);
-    assert.equal(getPlayerMatches(trym.playerId, 20)!.matches.length, 0);
+    assert.equal(getPlayerMatches(trym.playerId, { limit: 20 })!.matches.length, 0);
   });
 
   it("the reporter can cancel while pending; the opponent can't", () => {

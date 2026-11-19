@@ -2,9 +2,9 @@
 import { signup, type PublicUser } from "./services/authService.js";
 import { recordMatch } from "./services/matchService.js";
 
-// "reporter beat/lost to opponent myGames-theirGames in bo5", with the id doubling as the display name.
-// Returns the new match's id.
-export function play(reporterId: string, opponentId: string, myGames: number, theirGames: number): number {
+// "reporter beat/lost to opponent myGames-theirGames" (bo5 unless another format is given), with the id doubling as
+// the display name. Returns the new match's id.
+export function play(reporterId: string, opponentId: string, myGames: number, theirGames: number, format = "bo5"): number {
   return recordMatch({
     reporterId,
     reporterName: reporterId,
@@ -12,7 +12,7 @@ export function play(reporterId: string, opponentId: string, myGames: number, th
     opponentId,
     opponentName: opponentId,
     opponentAvatarUrl: null,
-    format: "bo5",
+    format,
     reporterGames: myGames,
     opponentGames: theirGames,
   }).matchId;

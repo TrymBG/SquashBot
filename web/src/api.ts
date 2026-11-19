@@ -30,6 +30,23 @@ export interface PlayerProfile {
   streak: { result: Result; count: number } | null
   recentForm: Result[] // newest first
   ratingHistory: { matchId: number; playedAt: string; rating: number }[] // oldest first
+  opponents: OpponentRecord[] // everyone they've played, most played first
+}
+
+// One opponent and the player's record against them (copy of OpponentRecord in the backend's statsService.ts).
+export interface OpponentRecord {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+  played: number
+  wins: number
+  losses: number
+}
+
+// Optional filters for a player's match history. Missing = no filter.
+export interface MatchFilters {
+  opponent?: string
+  format?: string
 }
 
 export interface PlayerMatch {
@@ -105,8 +122,13 @@ export function fetchPlayerProfile(playerId: string): Promise<PlayerProfile> {
   return getJson(`/api/players/${encodeURIComponent(playerId)}`)
 }
 
-export function fetchPlayerMatches(playerId: string, before?: number): Promise<MatchPage> {
-  const query = before === undefined ? '' : `?before=${before}`
+// One page of a player's matches. URLSearchParams builds the query string and escapes the values.
+export function fetchPlayerMatches(playerId: string, filters: MatchFilters, before?: number): Promise<MatchPage> {
+  const params = new URLSearchParams()
+  if (before !== undefined) params.set('before', String(before))
+  if (filters.opponent) params.set('opponent', filters.opponent)
+  if (filters.format) params.set('format', filters.format)
+  const query = params.size > 0 ? `?${params}` : ''
   return getJson(`/api/players/${encodeURIComponent(playerId)}/matches${query}`)
 }
 

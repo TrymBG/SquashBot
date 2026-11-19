@@ -341,6 +341,7 @@ export interface PlayerMatchFilter {
   limit?: number | undefined; // default: no limit
   before?: number | undefined; // only matches with a lower id (older), for paging
   opponentId?: string | undefined; // only matches against this player (head-to-head)
+  format?: string | undefined; // only matches in this format (bo1, bo3, bo5, ft6)
 }
 
 // A player's matches, newest first. Joining rating_history on the player's id both picks out
@@ -359,12 +360,14 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
     JOIN players o ON o.id = CASE WHEN m.winner_id = h.player_id THEN m.loser_id ELSE m.winner_id END
     WHERE (:before IS NULL OR m.id < :before)
       AND (:opponentId IS NULL OR o.id = :opponentId)
+      AND (:format IS NULL OR m.format = :format)
     ORDER BY m.id DESC
     LIMIT :limit
   `).all({
     playerId,
     before: filter.before ?? null,
     opponentId: filter.opponentId ?? null,
+    format: filter.format ?? null,
     limit: filter.limit ?? -1,
   }) as {
     id: number;

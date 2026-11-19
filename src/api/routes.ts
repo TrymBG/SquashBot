@@ -19,6 +19,8 @@ const matchesQuery = {
   properties: {
     limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
     before: { type: "integer", minimum: 1 },
+    opponent: playerId, // filter: only matches against this player
+    format: { type: "string", enum: ["bo1", "bo3", "bo5", "ft6"] }, // filter: only this format
   },
 } as const;
 
@@ -40,11 +42,12 @@ export async function apiRoutes(app: FastifyInstance): Promise<void> {
     return profile ?? reply.code(404).send(notFound);
   });
 
-  app.get<{ Params: { id: string }; Querystring: { limit: number; before?: number } }>(
+  app.get<{ Params: { id: string }; Querystring: { limit: number; before?: number; opponent?: string; format?: string } }>(
     "/api/players/:id/matches",
     { schema: { params: playerParams, querystring: matchesQuery } },
     async (request, reply) => {
-      const page = getPlayerMatches(request.params.id, request.query.limit, request.query.before);
+      const { limit, before, opponent, format } = request.query;
+      const page = getPlayerMatches(request.params.id, { limit, before, opponentId: opponent, format });
       return page ?? reply.code(404).send(notFound);
     },
   );

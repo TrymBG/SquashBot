@@ -1,15 +1,19 @@
 // A player's profile: header with rating and record, recent form, rating chart and match history.
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
-import { fetchPlayerProfile, isNotFound, type PlayerProfile } from '../api.ts'
+import { Link, useParams, useSearchParams } from 'react-router'
+import { fetchPlayerProfile, isNotFound, type MatchFilters as Filters, type PlayerProfile } from '../api.ts'
 import { formatPercent, formatRating } from '../format.ts'
 import Avatar from '../components/Avatar.tsx'
+import MatchFilters from '../components/MatchFilters.tsx'
 import MatchHistory from '../components/MatchHistory.tsx'
 import RatingChart from '../components/RatingChart.tsx'
 import ResultBadge from '../components/ResultBadge.tsx'
 
+const KNOWN_FORMATS = ['bo1', 'bo3', 'bo5', 'ft6']
+
 export default function PlayerPage() {
   const { id = '' } = useParams() // the :id part of /players/:id (always there on this route)
+  const [searchParams] = useSearchParams() // ?opponent=…&format=… (set by MatchFilters)
   const { data: profile, isPending, error } = useQuery({
     queryKey: ['player', id],
     queryFn: () => fetchPlayerProfile(id),
@@ -20,6 +24,12 @@ export default function PlayerPage() {
   if (error) return <p className="text-red-400">Could not load this player. Is the API running?</p>
 
   const played = profile.wins + profile.losses
+
+  // Filters from the URL. Values that don't fit (an opponent they never played, a made-up format) are ignored,
+  // so an old or hand-edited link shows all matches instead of an error.
+  const opponent = profile.opponents.find((o) => o.id === searchParams.get('opponent'))
+  const format = KNOWN_FORMATS.find((f) => f === searchParams.get('format'))
+  const filters: Filters = { ...(opponent ? { opponent: opponent.id } : {}), ...(format ? { format } : {}) }
 
   return (
     <div className="space-y-8">
@@ -48,9 +58,18 @@ export default function PlayerPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Matches</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Matches</h2>
+              <MatchFilters opponents={profile.opponents} />
+            </div>
+            {/* The record against the chosen opponent, over all their matches (not just the loaded page). */}
+            {opponent && (
+              <p className="mb-2 text-sm">
+                vs <span className="font-semibold">{opponent.displayName}</span>: {opponent.wins}–{opponent.losses}
+              </p>
+            )}
             {/* key: a fresh match list when going from one profile to another (e.g. clicking an opponent) */}
-            <MatchHistory key={profile.id} playerId={profile.id} />
+            <MatchHistory key={profile.id} playerId={profile.id} filters={filters} />
           </section>
         </>
       )}
