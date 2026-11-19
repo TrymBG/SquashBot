@@ -103,4 +103,16 @@ describe("report endpoints", () => {
     assert.equal(response.statusCode, 200);
     assert.deepEqual(response.json().map((p: { displayName: string }) => p.displayName), ["ola"]);
   });
+
+  it("accepts a fixed-rally result in points, and it shows up on the profile once confirmed", async () => {
+    const base = { opponentId: ola.user.playerId, format: "r15" };
+    assert.equal((await as(trym, "POST", "/api/reports", { ...base, myGames: 9, opponentGames: 7 })).statusCode, 400); // 16 rallies
+
+    const created = await as(trym, "POST", "/api/reports", { ...base, myGames: 8, opponentGames: 7 });
+    assert.equal(created.statusCode, 201);
+    await as(ola, "POST", `/api/reports/${created.json().report.id}/confirm`);
+
+    const matches = (await as(null, "GET", `/api/players/${trym.user.playerId}/matches?format=r15`)).json().matches;
+    assert.deepEqual(matches.map((m: { myGames: number; opponentGames: number }) => [m.myGames, m.opponentGames]), [[8, 7]]);
+  });
 });

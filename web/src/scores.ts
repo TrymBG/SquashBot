@@ -1,6 +1,8 @@
 // Every possible result for a match format, so the form can offer a list instead of free number fields.
 // Same rules as the backend's validation.ts (which still checks every report):
-// best of N: the winner reaches N/2 rounded up; first to 6: 6–0 … 6–4, then win by 2 (7–5, 8–6, …).
+// best of N: the winner reaches N/2 rounded up; first to 6: 6–0 … 6–4, then win by 2 (7–5, 8–6, …);
+// fixed rallies: exactly N points are played, so 15 rallies gives 15–0 … 8–7.
+import { findFormat } from './formats.ts'
 
 export interface ResultOption {
   label: string // "Won 3–1"
@@ -13,6 +15,16 @@ const FT6_MAX_WINNER_GAMES = 12
 
 // Winning scores as [winnerGames, loserGames], closest results last.
 function winningScores(format: string): [number, number][] {
+  const rallies = findFormat(format)?.rallies
+  if (rallies) {
+    const scores: [number, number][] = []
+    // The winner needs more than half: 15 rallies → 15–0, 14–1, … 8–7.
+    for (let winner = rallies; winner > rallies - winner; winner--) {
+      scores.push([winner, rallies - winner])
+    }
+    return scores
+  }
+
   switch (format) {
     case 'bo1':
       return [[1, 0]]

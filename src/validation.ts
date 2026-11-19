@@ -1,14 +1,20 @@
 // Input validation: checks user input (e.g. that a game score is possible for the format) before it reaches the database.
+import { rallyLength } from "./formats.js";
 
 export function isValidScore(format: string, myGames: number, theirGames: number): boolean {
-    const winner = Math.max(myGames, theirGames); 
+    const winner = Math.max(myGames, theirGames);
     const loser = Math.min(myGames, theirGames);
 
+    // Fixed rallies: exactly N points are played (N is odd, so there's always a winner).
+    const rallies = rallyLength(format);
+    if (rallies !== null) {
+        return winner + loser === rallies && winner > loser;
+    }
 
     switch (format) {
         case "bo1": return winner === 1 && loser < 1;
         case "bo3": return winner === 2 && loser < 2;
-        case "bo5": return winner === 3 && loser < 3; 
+        case "bo5": return winner === 3 && loser < 3;
         case "ft6": return (winner === 6 && loser <= 4) || (winner > 6 && winner - loser === 2);
 
         default: return false;

@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { fetchPlayerProfile, isNotFound, type MatchFilters as Filters, type PlayerProfile } from '../api.ts'
 import { formatPercent, formatRating } from '../format.ts'
+import { findFormat } from '../formats.ts'
 import Avatar from '../components/Avatar.tsx'
 import MatchFilters from '../components/MatchFilters.tsx'
 import MatchHistory from '../components/MatchHistory.tsx'
 import RatingChart from '../components/RatingChart.tsx'
 import ResultBadge from '../components/ResultBadge.tsx'
 
-const KNOWN_FORMATS = ['bo1', 'bo3', 'bo5', 'ft6']
 
 export default function PlayerPage() {
   const { id = '' } = useParams() // the :id part of /players/:id (always there on this route)
@@ -28,7 +28,7 @@ export default function PlayerPage() {
   // Filters from the URL. Values that don't fit (an opponent they never played, a made-up format) are ignored,
   // so an old or hand-edited link shows all matches instead of an error.
   const opponent = profile.opponents.find((o) => o.id === searchParams.get('opponent'))
-  const format = KNOWN_FORMATS.find((f) => f === searchParams.get('format'))
+  const format = findFormat(searchParams.get('format'))?.value
   const filters: Filters = { ...(opponent ? { opponent: opponent.id } : {}), ...(format ? { format } : {}) }
 
   return (

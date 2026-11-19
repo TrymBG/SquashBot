@@ -71,7 +71,8 @@ src/
 deploy/                 # squash.service (systemd), squash-backup.service/.timer (04:00), Caddyfile (HTTPS), deploy.sh, SERVER_SETUP.md
   testHelpers.ts        # play(): record a bo5 match in one line, for tests
   db.ts                 # openDatabase + schema + all SQL. No business logic
-  validation.ts         # isValidScore (pure)
+  formats.ts            # MATCH_FORMATS (the one list: bo1 bo3 bo5 ft6 r11 r15 r21), rallyLength(); schemas and validation use it
+  validation.ts         # isValidScore (pure) (+ validation.test.ts, every format)
   elo.ts                # pure Elo functions + replayMatches, no dependencies
   elo.test.ts
   seed.ts               # fake data script, refuses to write to squash.db
@@ -83,6 +84,7 @@ web/
     api.ts              # response types + fetch functions (getJson/postJson; ApiError carries the server's error text)
     auth.ts             # useCurrentUser (query ['me']), useLogin/useSignup/useLogout (mutations that update ['me'])
     format.ts           # display formatting: rounding, "+16", dates in Norwegian time
+    formats.ts          # FORMATS: the website's copy of the format list, with labels ("15 rallies", "R15"); keep in sync with src/formats.ts
     reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
     pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login)
@@ -113,14 +115,16 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Everyone starts at **1000**.
 - Expected score: `E = 1 / (1 + 10 ^ ((ratingOpponent - ratingPlayer) / 400))`.
 - Per-player K: **48** for a player's first 10 matches, **32** after.
-- Format multiplier: Bo1 0.5, Bo3 0.75, Bo5 1.0, FT6 1.25.
+- Format multiplier: Bo1 0.5, Bo3 0.75, Bo5 1.0, FT6 1.25, fixed rallies (R11/R15/R21) 0.5 (added 2026-11-19 by Claude, user-approved exception to "user writes elo.ts").
 - Margin of victory: `marginFactor = 1 + 0.2 × (winnerGames − loserGames) / winnerGames` (3-0 → 1.20, 3-2 → 1.07, 7-5 → 1.06). Max +20%.
 - Per player: `K = baseK × formatMultiplier × marginFactor`, `change = K × (result − E)`.
 - No decay: ratings only change when you play.
 - Ratings stored as REAL, rounded only for display. All numbers are starting values, tune after real use.
 
 ## Design decisions
-- **Match formats:** Best of 1, Best of 3, Best of 5, First to 6 (win by 2: 6-0…6-4, then 7-5, 8-6, …). `/result` takes `opponent`, `format` (choices), `my_games`, `their_games` (from the reporter's view). Score rules live in `validation.ts`.
+- **Match formats:** Best of 1, Best of 3, Best of 5, First to 6 (win by 2: 6-0…6-4, then 7-5, 8-6, …), and fixed rallies 11/15/21
+  (exactly N points are played, the score is in points, e.g. 8–7; stored in the same `winner_games`/`loser_games` columns). Rally formats are
+  website-only (not in the Discord `/result` choices). Adding a format: `src/formats.ts`, `web/src/formats.ts`, `elo.ts` multiplier, `validation.ts`. `/result` takes `opponent`, `format` (choices), `my_games`, `their_games` (from the reporter's view). Score rules live in `validation.ts`.
 - **`/undo`:** only the most recent match, after a confirmation button. It deletes the match, then **recomputes all ratings from scratch** with `replayMatches` (everyone back to 1000, replay every remaining match ordered by `id`, rewrite `rating_history` and `players.rating`). The same replay works for rule changes and future seasons. Anyone can undo for now (`canUndo`).
 - Replay order is `matches.id` (insertion order, unique), not `played_at` (could tie). For web reports that means confirmation order, even if `played_at` is earlier.
 - **Web result reporting (W3):** only against players with a web account (they must confirm). Only the opponent confirms/rejects, only the reporter cancels, only while pending. Reports you're not part of give 404. Protected routes use the `requireLogin` onRequest hook, so a logged-out request gets 401 before body validation.
@@ -136,7 +140,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 116 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 144 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.

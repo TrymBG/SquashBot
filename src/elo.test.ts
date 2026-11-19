@@ -50,6 +50,32 @@ describe("formatMultiplier", () => {
   it("throws for an unknown format", () => {
     assert.throws(() => formatMultiplier("bo7"));
   });
+
+  it("counts every fixed-rally length like one game (0.5)", () => {
+    for (const format of ["r11", "r15", "r21"]) {
+      assert.equal(formatMultiplier(format), 0.5, format);
+    }
+  });
+});
+
+describe("fixed-rally matches", () => {
+  it("rate a close 8–7 win: K 48 × 0.5 × margin 1.025, half of it between equal players", () => {
+    const newPlayer = { rating: STARTING_RATING, matchesPlayed: 0 };
+
+    const { winnerRating, loserRating } = calculateNewRatings(newPlayer, newPlayer, { format: "r15", winnerGames: 8, loserGames: 7 });
+
+    // 48 × 0.5 × (1 + 0.2 × 1/8) × (1 − 0.5) = 12.3
+    assert.ok(Math.abs(winnerRating - 1012.3) < 1e-9, `winner ${winnerRating}`);
+    assert.ok(Math.abs(loserRating - 987.7) < 1e-9, `loser ${loserRating}`);
+  });
+
+  it("reward a 15–0 more than an 8–7", () => {
+    const player = { rating: STARTING_RATING, matchesPlayed: 20 };
+    const close = calculateNewRatings(player, player, { format: "r15", winnerGames: 8, loserGames: 7 });
+    const big = calculateNewRatings(player, player, { format: "r15", winnerGames: 15, loserGames: 0 });
+
+    assert.ok(big.winnerRating > close.winnerRating);
+  });
 });
 
 describe("marginFactor", () => {
