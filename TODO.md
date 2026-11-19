@@ -92,14 +92,15 @@ Each milestone planned in plan mode.
   - [x] PR 1: fixed-rally formats r11/r15/r21 (score in points, sum = N), Elo multiplier 0.5, usable everywhere on the website;
     one format list per side (`src/formats.ts`, `web/src/formats.ts`); `validation.test.ts` covers every format
   - [x] PR 2: round-robin backend: tables, `roundRobinSchedule`, `roundRobinStandings` (wins or points), service, routes, tournament reports
-  - [ ] T1b: knockout bracket (separate plan)
+  - [x] T1b: knockout (4–16 players, seeded by rating, byes for top seeds, optional 3rd-place match, bracket view, podium).
+    Schema changed (nullable slots, `position`, `seed`, `third_place`): run `npm run seed` once on any old local seed.db
   - Decided: two separate formats, picked when creating; 4–16 players; any logged-in user can create one (creator = organizer);
     tournament matches count for Elo
   - Candidates for writing by hand (like `elo.ts`): the bracket function, the round-robin schedule and the standings/tiebreak function
   - Maybe split: T1a shared tables + knockout, T1b round robin (decide in plan mode)
 - [x] T2 Tournaments, frontend (round robin): `/tournaments` (list + create form), `/tournaments/:id` (draft: players + start;
       active: standings + schedule by round, report/confirm/reject/cancel right on the match); 🏆 label in /results and on profiles
-  - [ ] Knockout bracket view: comes with T1b
+  - [x] Knockout bracket view (columns per round, sideways scroll on phones)
 - [ ] Later: groups → knockout (round-robin groups, top players into a bracket), double round robin
 - [ ] D1 Design pass (user has input, discuss first)
 - [ ] Invite friends (after W5b hosting)

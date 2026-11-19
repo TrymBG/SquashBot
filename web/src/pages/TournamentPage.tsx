@@ -4,13 +4,15 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { isNotFound, type TournamentDetails, type User } from '../api.ts'
 import { useCurrentUser } from '../auth.ts'
+import BracketView from '../components/BracketView.tsx'
 import StandingsTable from '../components/StandingsTable.tsx'
 import TournamentMatchRow from '../components/TournamentMatchRow.tsx'
 import { useOpponents } from '../reports.ts'
 import { useAddPlayer, useRemovePlayer, useStartTournament, useTournament } from '../tournaments.ts'
 import { describeTournament, statusText } from '../format.ts'
 
-const MIN_PLAYERS = 3 // same rule as the server
+// Same rules as the server: a knockout needs 4 (with 3 there'd be no real semifinal).
+const MIN_PLAYERS = { round_robin: 3, knockout: 4 }
 
 export default function TournamentPage() {
   const { id = '' } = useParams()
@@ -43,7 +45,8 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
   const remove = useRemovePlayer(t.id)
   const start = useStartTournament(t.id)
   const error = remove.error ?? start.error
-  const tooFew = t.players.length < MIN_PLAYERS
+  const minPlayers = MIN_PLAYERS[t.type]
+  const tooFew = t.players.length < minPlayers
 
   return (
     <section className="space-y-4">
@@ -84,8 +87,10 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
           </button>
           <p className="text-sm text-slate-400">
             {tooFew
-              ? `Add at least ${MIN_PLAYERS} players to start.`
-              : 'Starting draws up the schedule; after that the player list is locked.'}
+              ? `Add at least ${minPlayers} players to start.`
+              : t.type === 'knockout'
+                ? 'Starting seeds the players by rating and draws the bracket; after that the player list is locked.'
+                : 'Starting draws up the schedule; after that the player list is locked.'}
           </p>
         </>
       ) : (
@@ -139,8 +144,9 @@ function AddPlayer({ t, currentUser }: { t: TournamentDetails; currentUser: User
 }
 
 function ActiveView({ t, currentUser }: { t: TournamentDetails; currentUser: User | null | undefined }) {
+  if (t.type === 'knockout') return <KnockoutView t={t} currentUser={currentUser} />
+
   const winners = t.standings.filter((row) => row.position === 1).map((row) => row.displayName)
-  const rounds = [...new Set(t.matches.map((m) => m.round))]
 
   return (
     <>
@@ -157,9 +163,9 @@ function ActiveView({ t, currentUser }: { t: TournamentDetails; currentUser: Use
 
       <section className="space-y-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Schedule</h2>
-        {rounds.map((round) => (
+        {t.rounds.map(({ round, name }) => (
           <div key={round}>
-            <h3 className="mb-1 text-sm text-slate-400">Round {round}</h3>
+            <h3 className="mb-1 text-sm text-slate-400">{name}</h3>
             <ul className="space-y-1">
               {t.matches
                 .filter((m) => m.round === round)
@@ -169,6 +175,26 @@ function ActiveView({ t, currentUser }: { t: TournamentDetails; currentUser: Use
             </ul>
           </div>
         ))}
+      </section>
+    </>
+  )
+}
+
+// Knockout: the bracket, and the podium once it's finished.
+function KnockoutView({ t, currentUser }: { t: TournamentDetails; currentUser: User | null | undefined }) {
+  const podium = t.podium
+  return (
+    <>
+      {t.finished && podium && (
+        <div className="space-y-1 rounded bg-amber-950 px-4 py-3 text-amber-200">
+          <p className="text-lg font-semibold text-amber-300">🥇 {podium.first?.displayName}</p>
+          <p>🥈 {podium.second?.displayName}</p>
+          {podium.third.length > 0 && <p>🥉 {podium.third.map((p) => p.displayName).join(' & ')}</p>}
+        </div>
+      )}
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Bracket</h2>
+        <BracketView t={t} currentUser={currentUser} />
       </section>
     </>
   )

@@ -238,7 +238,8 @@ export interface TournamentSummary {
   name: string
   type: 'round_robin' | 'knockout'
   matchFormat: string
-  ranking: TournamentRanking | null
+  ranking: TournamentRanking | null // round robin only
+  thirdPlace: boolean // knockout: a match for 3rd place
   status: 'draft' | 'active'
   organizerId: string
   organizerName: string
@@ -254,13 +255,22 @@ export interface TournamentPlayer {
   displayName: string
   avatarUrl: string | null
   rating: number
+  seed: number | null // knockout
+}
+
+export interface MatchPlayer {
+  id: string
+  displayName: string
+  seed: number | null // knockout
 }
 
 export interface TournamentMatch {
   id: number
   round: number
-  playerA: { id: string; displayName: string }
-  playerB: { id: string; displayName: string }
+  position: number
+  playerA: MatchPlayer | null // null: knockout slot not decided yet
+  playerB: MatchPlayer | null
+  thirdPlace: boolean
   state: 'unplayed' | 'pending' | 'played'
   scoreA: number | null // from player A's side, once played
   scoreB: number | null
@@ -282,8 +292,10 @@ export interface TournamentDetails extends TournamentSummary {
   organizer: { id: string; displayName: string }
   finished: boolean
   players: TournamentPlayer[]
-  matches: TournamentMatch[] // by round
-  standings: StandingRow[]
+  matches: TournamentMatch[] // by round, then position
+  rounds: { round: number; name: string }[] // "Round 1" or "Semifinals", "Final", …
+  standings: StandingRow[] // round robin
+  podium: { first: MatchPlayer | null; second: MatchPlayer | null; third: MatchPlayer[] } | null // knockout
 }
 
 export function fetchTournaments(): Promise<TournamentSummary[]> {
@@ -297,7 +309,9 @@ export function fetchTournament(id: number): Promise<TournamentDetails> {
 export async function createTournament(input: {
   name: string
   matchFormat: string
-  ranking: TournamentRanking
+  type: 'round_robin' | 'knockout'
+  ranking?: TournamentRanking // round robin
+  thirdPlace?: boolean // knockout
 }): Promise<TournamentDetails> {
   return (await postJson<{ tournament: TournamentDetails }>('/api/tournaments', input)).tournament
 }

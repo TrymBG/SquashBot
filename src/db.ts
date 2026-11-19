@@ -90,6 +90,7 @@ function initSchema(): void {
       type         TEXT NOT NULL CHECK (type IN ('round_robin', 'knockout')),
       match_format TEXT NOT NULL,
       ranking      TEXT CHECK (ranking IN ('wins', 'points')), -- round robin only
+      third_place  INTEGER NOT NULL DEFAULT 0, -- knockout only: 1 = the semifinal losers play for 3rd
       status       TEXT NOT NULL CHECK (status IN ('draft', 'active')),
       organizer_id TEXT NOT NULL REFERENCES players(id),
       created_at   TEXT NOT NULL,
@@ -100,21 +101,31 @@ function initSchema(): void {
       tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
       player_id     TEXT NOT NULL REFERENCES players(id),
       added_at      TEXT NOT NULL,
+      seed          INTEGER, -- knockout: 1 = top seed, set at the start (by rating)
       PRIMARY KEY (tournament_id, player_id)
     );
 
-    -- The scheduled matches of a tournament. match_id is set when a result is confirmed; SET NULL: if that match is
-    -- undone later, the tournament match is simply unplayed again.
+    -- The scheduled matches of a tournament, one row per slot (round, position). match_id is set when a result is
+    -- confirmed; SET NULL: if that match is undone later, the tournament match is simply unplayed again.
+    -- Players can be NULL in a knockout: a later-round slot is empty until the feeder matches are played.
     CREATE TABLE IF NOT EXISTS tournament_matches (
       id            INTEGER PRIMARY KEY AUTOINCREMENT,
       tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
       round         INTEGER NOT NULL,
-      player_a      TEXT NOT NULL REFERENCES players(id),
-      player_b      TEXT NOT NULL REFERENCES players(id),
+      position      INTEGER NOT NULL,
+      player_a      TEXT REFERENCES players(id),
+      player_b      TEXT REFERENCES players(id),
       match_id      INTEGER REFERENCES matches(id) ON DELETE SET NULL,
-      UNIQUE (tournament_id, player_a, player_b)
+      UNIQUE (tournament_id, round, position)
     );
   `);
+
+  // Guard: an early version of tournament_matches (players NOT NULL, no position) can't be changed in place, and
+  // CREATE TABLE IF NOT EXISTS leaves it as it is. Only dev databases ever had it, so ask for a fresh one.
+  const tournamentMatchColumns = db.prepare("PRAGMA table_info(tournament_matches)").all() as { name: string }[];
+  if (!tournamentMatchColumns.some((c) => c.name === "position")) {
+    throw new Error("This database has an old version of the tournament tables. Run `npm run seed` for a fresh seed.db.");
+  }
 
   addColumnIfMissing("players", "avatar_url", "TEXT");
   // A web report can belong to a scheduled tournament match.
@@ -697,6 +708,7 @@ export interface NewTournament {
   type: TournamentType;
   matchFormat: string;
   ranking: TournamentRanking | null;
+  thirdPlace: boolean; // knockout: play a match for 3rd place
   organizerId: string;
 }
 
@@ -713,15 +725,23 @@ export interface TournamentRow extends NewTournament {
 
 export function insertTournament(tournament: NewTournament, createdAt: string): number {
   const result = db.prepare(`
-    INSERT INTO tournaments (name, type, match_format, ranking, status, organizer_id, created_at)
-    VALUES (?, ?, ?, ?, 'draft', ?, ?)
-  `).run(tournament.name, tournament.type, tournament.matchFormat, tournament.ranking, tournament.organizerId, createdAt);
+    INSERT INTO tournaments (name, type, match_format, ranking, third_place, status, organizer_id, created_at)
+    VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)
+  `).run(
+    tournament.name,
+    tournament.type,
+    tournament.matchFormat,
+    tournament.ranking,
+    tournament.thirdPlace ? 1 : 0,
+    tournament.organizerId,
+    createdAt,
+  );
   return Number(result.lastInsertRowid);
 }
 
 const TOURNAMENT_SELECT = `
   SELECT
-    t.id, t.name, t.type, t.match_format, t.ranking, t.status, t.organizer_id, o.display_name AS organizer_name,
+    t.id, t.name, t.type, t.match_format, t.ranking, t.third_place, t.status, t.organizer_id, o.display_name AS organizer_name,
     t.created_at, t.started_at,
     (SELECT COUNT(*) FROM tournament_players tp WHERE tp.tournament_id = t.id) AS player_count,
     (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_id = t.id) AS match_count,
@@ -736,6 +756,7 @@ interface TournamentDbRow {
   type: TournamentType;
   match_format: string;
   ranking: TournamentRanking | null;
+  third_place: number;
   status: "draft" | "active";
   organizer_id: string;
   organizer_name: string;
@@ -753,6 +774,7 @@ function toTournamentRow(row: TournamentDbRow): TournamentRow {
     type: row.type,
     matchFormat: row.match_format,
     ranking: row.ranking,
+    thirdPlace: row.third_place === 1,
     status: row.status,
     organizerId: row.organizer_id,
     organizerName: row.organizer_name,
@@ -775,6 +797,12 @@ export function getTournaments(): TournamentRow[] {
   return rows.map(toTournamentRow);
 }
 
+// Active knockout tournaments (their brackets are re-synced after an undo).
+export function getActiveKnockoutIds(): number[] {
+  const rows = db.prepare("SELECT id FROM tournaments WHERE type = 'knockout' AND status = 'active'").all() as { id: number }[];
+  return rows.map((row) => row.id);
+}
+
 export function setTournamentActive(id: number, startedAt: string): void {
   db.prepare("UPDATE tournaments SET status = 'active', started_at = ? WHERE id = ?").run(startedAt, id);
 }
@@ -784,6 +812,7 @@ export interface TournamentPlayerRow {
   displayName: string;
   avatarUrl: string | null;
   rating: number;
+  seed: number | null; // knockout, from the start
 }
 
 export function addTournamentPlayer(tournamentId: number, playerId: string, addedAt: string): void {
@@ -796,25 +825,46 @@ export function removeTournamentPlayer(tournamentId: number, playerId: string): 
   return Number(result.changes) === 1;
 }
 
-// In the order they joined (the schedule is built from this order, so it's stable).
+// In the order they joined (the schedule and the seeding tie-break use this order, so it's stable).
 export function getTournamentPlayers(tournamentId: number): TournamentPlayerRow[] {
   const rows = db.prepare(`
-    SELECT p.id, p.display_name, p.avatar_url, p.rating
+    SELECT p.id, p.display_name, p.avatar_url, p.rating, tp.seed
     FROM tournament_players tp
     JOIN players p ON p.id = tp.player_id
     WHERE tp.tournament_id = ?
     ORDER BY tp.added_at, tp.rowid
-  `).all(tournamentId) as { id: string; display_name: string; avatar_url: string | null; rating: number }[];
-  return rows.map((row) => ({ playerId: row.id, displayName: row.display_name, avatarUrl: row.avatar_url, rating: row.rating }));
+  `).all(tournamentId) as { id: string; display_name: string; avatar_url: string | null; rating: number; seed: number | null }[];
+  return rows.map((row) => ({
+    playerId: row.id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    rating: row.rating,
+    seed: row.seed,
+  }));
 }
 
-export function insertTournamentMatch(tournamentId: number, round: number, playerA: string, playerB: string): void {
-  db.prepare("INSERT INTO tournament_matches (tournament_id, round, player_a, player_b) VALUES (?, ?, ?, ?)").run(
+export function setTournamentSeed(tournamentId: number, playerId: string, seed: number): void {
+  db.prepare("UPDATE tournament_players SET seed = ? WHERE tournament_id = ? AND player_id = ?").run(seed, tournamentId, playerId);
+}
+
+export function insertTournamentMatch(
+  tournamentId: number,
+  round: number,
+  position: number,
+  playerA: string | null,
+  playerB: string | null,
+): void {
+  db.prepare("INSERT INTO tournament_matches (tournament_id, round, position, player_a, player_b) VALUES (?, ?, ?, ?, ?)").run(
     tournamentId,
     round,
+    position,
     playerA,
     playerB,
   );
+}
+
+export function setTournamentMatchPlayers(id: number, playerA: string | null, playerB: string | null): void {
+  db.prepare("UPDATE tournament_matches SET player_a = ?, player_b = ? WHERE id = ?").run(playerA, playerB, id);
 }
 
 // A scheduled tournament match with its result (scores from player A's side) once played, and whether a report
@@ -823,8 +873,9 @@ export interface TournamentMatchRow {
   id: number;
   tournamentId: number;
   round: number;
-  playerA: string;
-  playerB: string;
+  position: number;
+  playerA: string | null; // null: knockout slot not decided yet
+  playerB: string | null;
   matchId: number | null;
   scoreA: number | null;
   scoreB: number | null;
@@ -834,7 +885,7 @@ export interface TournamentMatchRow {
 
 const TOURNAMENT_MATCH_SELECT = `
   SELECT
-    tm.id, tm.tournament_id, tm.round, tm.player_a, tm.player_b, tm.match_id,
+    tm.id, tm.tournament_id, tm.round, tm.position, tm.player_a, tm.player_b, tm.match_id,
     CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.winner_games ELSE m.loser_games END AS score_a,
     CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.loser_games ELSE m.winner_games END AS score_b,
     pr.id AS pending_report_id, pr.reporter_id AS pending_reporter_id,
@@ -848,8 +899,9 @@ interface TournamentMatchDbRow {
   id: number;
   tournament_id: number;
   round: number;
-  player_a: string;
-  player_b: string;
+  position: number;
+  player_a: string | null;
+  player_b: string | null;
   match_id: number | null;
   score_a: number | null;
   score_b: number | null;
@@ -864,6 +916,7 @@ function toTournamentMatchRow(row: TournamentMatchDbRow): TournamentMatchRow {
     id: row.id,
     tournamentId: row.tournament_id,
     round: row.round,
+    position: row.position,
     playerA: row.player_a,
     playerB: row.player_b,
     matchId: row.match_id,
@@ -886,9 +939,9 @@ export function getTournamentMatch(id: number): TournamentMatchRow | undefined {
   return row && toTournamentMatchRow(row);
 }
 
-// By round, in schedule order.
+// By round, then position (schedule order; bracket top to bottom).
 export function getTournamentMatches(tournamentId: number): TournamentMatchRow[] {
-  const rows = db.prepare(`${TOURNAMENT_MATCH_SELECT} WHERE tm.tournament_id = ? ORDER BY tm.round, tm.id`).all(
+  const rows = db.prepare(`${TOURNAMENT_MATCH_SELECT} WHERE tm.tournament_id = ? ORDER BY tm.round, tm.position`).all(
     tournamentId,
   ) as unknown as TournamentMatchDbRow[];
   return rows.map(toTournamentMatchRow);
