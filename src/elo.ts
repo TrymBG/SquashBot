@@ -13,6 +13,10 @@ const FORMAT_MULTIPLIERS: Record<string, number> = {
   bo3: 0.75,
   bo5: 1.0,
   ft6: 1.25,
+  // Fixed rallies (score in points): about one long game, so like bo1 for every length (decided 2026-11-19).
+  r11: 0.5,
+  r15: 0.5,
+  r21: 0.5,
 };
 
 // Probability (0..1) that a player beats the opponent, based on the rating gap.

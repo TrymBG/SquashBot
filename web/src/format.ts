@@ -1,5 +1,6 @@
 // Display formatting. Ratings are stored unrounded and only rounded here; times are stored in UTC
 // and shown in Norwegian time.
+import { findFormat } from './formats.ts'
 
 const dateFormat = new Intl.DateTimeFormat('nb-NO', {
   timeZone: 'Europe/Oslo',
@@ -30,8 +31,7 @@ export function formatPercent(fraction: number): string {
   return `${Math.round(fraction * 100)}%`
 }
 
-const FORMAT_LABELS: Record<string, string> = { bo1: 'Bo1', bo3: 'Bo3', bo5: 'Bo5', ft6: 'FT6' }
-
+// "bo5" → "Bo5", "r15" → "R15". An unknown format is shown as it is.
 export function formatMatchFormat(format: string): string {
-  return FORMAT_LABELS[format] ?? format
+  return findFormat(format)?.short ?? format
 }

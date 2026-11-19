@@ -10,13 +10,14 @@ import {
   reportResult,
   type ChangeFailure,
 } from "../services/reportService.js";
+import { MATCH_FORMATS } from "../formats.js";
 import { loggedInUser, requireLogin } from "./authRoutes.js";
 
 const reportBody = {
   type: "object",
   properties: {
     opponentId: { type: "string", minLength: 1, maxLength: 64 },
-    format: { type: "string", enum: ["bo1", "bo3", "bo5", "ft6"] },
+    format: { type: "string", enum: [...MATCH_FORMATS] },
     myGames: { type: "integer", minimum: 0, maximum: 99 },
     opponentGames: { type: "integer", minimum: 0, maximum: 99 },
     playedAt: { type: "string", format: "date-time" },

@@ -2,6 +2,7 @@
 // Each route declares a schema for its input. Fastify checks it before the handler runs and answers 400 if it doesn't
 // match, and it converts query strings like "20" to numbers.
 import type { FastifyInstance } from "fastify";
+import { MATCH_FORMATS } from "../formats.js";
 import { checkHealth } from "../services/healthService.js";
 import { getHeadToHead, getLeaderboard, getPlayerMatches, getPlayerProfile } from "../services/statsService.js";
 
@@ -20,7 +21,7 @@ const matchesQuery = {
     limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
     before: { type: "integer", minimum: 1 },
     opponent: playerId, // filter: only matches against this player
-    format: { type: "string", enum: ["bo1", "bo3", "bo5", "ft6"] }, // filter: only this format
+    format: { type: "string", enum: [...MATCH_FORMATS] }, // filter: only this format
   },
 } as const;
 

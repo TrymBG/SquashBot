@@ -85,8 +85,14 @@ Each milestone planned in plan mode.
       (shared by both formats); create/add players/start API; reports get an optional tournament match link, confirming records the
       match (counts for Elo via `recordMatch`) and updates the tournament
   - Knockout: bracket logic as a pure function with tests (seeding, byes for non-power-of-2, who meets whom next); winner moves on
-  - Round robin: schedule as a pure function (circle method, everyone meets everyone **once**); standings ranked by
-    **wins, then head-to-head, then game difference**; matches can be played in any order
+  - Round robin: schedule as a pure function (circle method, everyone meets everyone **once**); matches can be played in any order.
+    Organizer picks the ranking when creating (decided 2026-11-19):
+    - **Match wins**: wins, then head-to-head, then game difference
+    - **Total points**: sum of points scored (loser keeps theirs: 8–7 gives 8 and 7), then head-to-head, then match wins
+  - [x] PR 1: fixed-rally formats r11/r15/r21 (score in points, sum = N), Elo multiplier 0.5, usable everywhere on the website;
+    one format list per side (`src/formats.ts`, `web/src/formats.ts`); `validation.test.ts` covers every format
+  - [ ] PR 2: round-robin backend: tables, `roundRobinSchedule`, `roundRobinStandings` (wins or points), service, routes, tournament reports
+  - [ ] T1b: knockout bracket (separate plan)
   - Decided: two separate formats, picked when creating; 4–16 players; any logged-in user can create one (creator = organizer);
     tournament matches count for Elo
   - Candidates for writing by hand (like `elo.ts`): the bracket function, the round-robin schedule and the standings/tiebreak function

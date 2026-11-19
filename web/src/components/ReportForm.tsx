@@ -2,14 +2,9 @@
 // The result is sent to the opponent, who has to confirm it before it counts.
 import { useState, type FormEvent } from 'react'
 import { useCreateReport, useOpponents } from '../reports.ts'
+import { FORMATS } from '../formats.ts'
 import { validResults } from '../scores.ts'
 
-const FORMATS = [
-  { value: 'bo1', label: 'Best of 1' },
-  { value: 'bo3', label: 'Best of 3' },
-  { value: 'bo5', label: 'Best of 5' },
-  { value: 'ft6', label: 'First to 6' },
-]
 
 const MAX_DAYS_BACK = 30 // same limit as the server
 
@@ -113,7 +108,7 @@ export default function ReportForm() {
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Result (your games first)</span>
+        <span className="mb-1 block text-sm text-slate-400">Result (your score first)</span>
         <select value={resultIndex} onChange={(e) => setResultIndex(Number(e.target.value))} className={selectClass}>
           {results.map((r, index) => (
             <option key={r.label} value={index}>
