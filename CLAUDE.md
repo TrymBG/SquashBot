@@ -65,11 +65,14 @@ src/
     authService.test.ts
     reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
     reportService.test.ts
-    tournamentService.ts  # create (draft) → add/remove players (organizer) → start (writes the schedule) → details with standings
+    tournamentService.ts  # create (draft) → add/remove players (organizer) → start (writes every slot) → details (standings or podium);
+                          # syncKnockout: re-runs buildKnockout after a confirm (afterTournamentMatchResult) and after /undo (syncAllKnockouts)
+    knockout.test.ts      # knockout through the service: seeding, byes, advancing, podium, 3rd place, undo, old-schema guard
     tournamentService.test.ts
   tournaments/          # pure tournament logic, no DB (like elo.ts)
     schedule.ts         # roundRobinSchedule: circle method, byes for odd counts (+ schedule.test.ts)
     standings.ts        # roundRobinStandings: wins | points, head-to-head mini-league tiebreak, shared places (+ standings.test.ts)
+    bracket.ts          # knockout: bracketSize, seedOrder (doubling rule), buildKnockout(seeds, results), roundName (+ bracket.test.ts)
   db.test.ts            # reentrant transaction()
   backups.ts            # backupDatabase(dir): VACUUM INTO a dated file, keep the newest 14 (+ backups.test.ts)
   backup.ts             # entry for npm run backup
@@ -96,7 +99,7 @@ web/
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
     pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
                         # TournamentsPage (/tournaments: list + create form), TournamentPage (/tournaments/:id: draft view / standings + schedule)
-    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match)
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -108,7 +111,8 @@ web/
 ## Database design
 - Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept; optional `tournament_match_id`),
   `tournaments` (`type` round_robin | knockout, `match_format`, `ranking` wins | points, `status` draft | active; "finished" is computed),
-  `tournament_players`, `tournament_matches` (scheduled pairing per round; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again).
+  `tournament_players` (`seed` for knockout), `tournament_matches` (one row per slot: `round`, `position`, `player_a`/`player_b` nullable = knockout slot not decided yet; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again), `tournaments.third_place`.
+- **Knockout bracket = a function of seeds + results** (like ratings = replay of matches): `buildKnockout` rebuilds every slot; `syncKnockout` writes the changed ones (and cancels a pending report on a slot whose players changed). Played slots never change.
 - Web players get a UUID as player id (36 chars; Discord ids are numeric), so route schemas allow ids up to 64 chars.
 - Players are identified by Discord user ID, stored as TEXT (64-bit, unsafe as a JS `number`).
 - `players.display_name` and `players.avatar_url` are refreshed every time the player plays, so the website never calls Discord. `avatar_url` can be NULL (seed players).
@@ -150,7 +154,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 192 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 222 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
@@ -159,7 +163,8 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
   standings by wins or points with head-to-head tiebreak. Tournament rules: 3–16 players with web accounts; only the organizer changes it; only while draft.
 - Round-robin tournament pages work (T2): create, players, start, standings + schedule, report/confirm on the match, 🏆 labels.
   API extras for the pages: tournament matches expose `pendingReport`, reports carry `tournamentName`, profile matches carry `tournament`.
-- Next feature work: TODO.md section 5: T1b (knockout backend + bracket view), then D1 design pass. Plan in plan mode.
+- Knockout tournaments work (T1b): seeded by rating, byes, optional 3rd place, bracket view, podium; Discord /undo re-syncs the bracket.
+- Next feature work: TODO.md section 5: D1 design pass (user has input), then hosting (W5b) and invite friends. Plan in plan mode.
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.

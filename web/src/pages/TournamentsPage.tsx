@@ -50,18 +50,29 @@ function CreateTournamentForm() {
   const navigate = useNavigate()
   const create = useCreateTournament()
   const [name, setName] = useState('')
+  const [type, setType] = useState<'round_robin' | 'knockout'>('round_robin')
   const [matchFormat, setMatchFormat] = useState('bo3')
   const [ranking, setRanking] = useState<TournamentRanking>('wins')
+  const [thirdPlace, setThirdPlace] = useState(false)
   const isRally = findFormat(matchFormat)?.rallies !== null
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    create.mutate({ name, matchFormat, ranking }, { onSuccess: (t) => navigate(`/tournaments/${t.id}`) })
+    // Each type only sends its own option: ranking for round robin, the 3rd-place match for knockout.
+    const options = type === 'round_robin' ? { ranking } : { thirdPlace }
+    create.mutate({ name, matchFormat, type, ...options }, { onSuccess: (t) => navigate(`/tournaments/${t.id}`) })
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-3">
+    <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
       <TextField label="Name" required maxLength={60} value={name} onValueChange={setName} />
+      <label className="block">
+        <span className="mb-1 block text-sm text-slate-400">Type</span>
+        <select value={type} onChange={(e) => setType(e.target.value as 'round_robin' | 'knockout')} className={selectClass}>
+          <option value="round_robin">Round robin</option>
+          <option value="knockout">Knockout</option>
+        </select>
+      </label>
       <label className="block">
         <span className="mb-1 block text-sm text-slate-400">Match format</span>
         <select
@@ -80,17 +91,29 @@ function CreateTournamentForm() {
           ))}
         </select>
       </label>
-      <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Ranked by</span>
-        <select value={ranking} onChange={(e) => setRanking(e.target.value as TournamentRanking)} className={selectClass}>
-          <option value="wins">Match wins</option>
-          <option value="points" disabled={!isRally}>
-            Points scored{isRally ? '' : ' (rally formats only)'}
-          </option>
-        </select>
-      </label>
-      <div className="sm:col-span-3">
-        <p className="mb-2 text-sm text-slate-400">Round robin: everyone plays everyone once. You add the players next.</p>
+      {type === 'round_robin' ? (
+        <label className="block">
+          <span className="mb-1 block text-sm text-slate-400">Ranked by</span>
+          <select value={ranking} onChange={(e) => setRanking(e.target.value as TournamentRanking)} className={selectClass}>
+            <option value="wins">Match wins</option>
+            <option value="points" disabled={!isRally}>
+              Points scored{isRally ? '' : ' (rally formats only)'}
+            </option>
+          </select>
+        </label>
+      ) : (
+        <label className="flex items-center gap-2 self-end pb-2">
+          <input type="checkbox" checked={thirdPlace} onChange={(e) => setThirdPlace(e.target.checked)} />
+          <span className="text-sm">Play a 3rd-place match</span>
+        </label>
+      )}
+      <div className="sm:col-span-2">
+        <p className="mb-2 text-sm text-slate-400">
+          {type === 'round_robin'
+            ? 'Round robin: everyone plays everyone once (3–16 players).'
+            : 'Knockout: lose once and you are out (4–16 players, seeded by rating, byes for the top seeds).'}{' '}
+          You add the players next.
+        </p>
         {create.error && <p className="mb-2 text-sm text-rose-400">{create.error.message}</p>}
         <button type="submit" disabled={create.isPending} className="rounded bg-sky-600 px-4 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50">
           {create.isPending ? 'Creating…' : 'Create tournament'}

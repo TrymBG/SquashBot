@@ -41,6 +41,7 @@ const reportErrors = {
   "not-your-tournament-match": { status: 400, error: "That tournament match is between other players" },
   "wrong-format": { status: 400, error: "This tournament uses a different format" },
   "tournament-match-taken": { status: 409, error: "This tournament match is already played or waiting for confirmation" },
+  "tournament-match-not-ready": { status: 409, error: "This match's players aren't decided yet" },
 } as const;
 
 const changeErrors = {

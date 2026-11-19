@@ -22,6 +22,7 @@ import {
 import { isValidScore } from "../validation.js";
 import type { PublicUser } from "./authService.js";
 import { recordMatch } from "./matchService.js";
+import { afterTournamentMatchResult } from "./tournamentService.js";
 
 export type { OpponentRow, ReportRow };
 
@@ -50,7 +51,8 @@ export type ReportResult =
         | "tournament-match-not-found"
         | "not-your-tournament-match" // you or the opponent isn't one of the two scheduled players
         | "wrong-format" // not the tournament's format
-        | "tournament-match-taken"; // already played, or a report for it is waiting for confirmation
+        | "tournament-match-taken" // already played, or a report for it is waiting for confirmation
+        | "tournament-match-not-ready"; // knockout: the other player isn't known yet
     };
 
 // Why changing a report failed. not-found also covers "exists, but you're not part of it", so outsiders can't
@@ -106,10 +108,17 @@ export function reportResult(user: PublicUser, input: ReportInput, now = new Dat
 function checkTournamentMatch(
   user: PublicUser,
   input: ReportInput,
-): "tournament-match-not-found" | "not-your-tournament-match" | "wrong-format" | "tournament-match-taken" | null {
+):
+  | "tournament-match-not-found"
+  | "not-your-tournament-match"
+  | "wrong-format"
+  | "tournament-match-taken"
+  | "tournament-match-not-ready"
+  | null {
   const match = input.tournamentMatchId === undefined ? undefined : getTournamentMatch(input.tournamentMatchId);
   const tournament = match && getTournament(match.tournamentId);
   if (!match || !tournament) return "tournament-match-not-found";
+  if (match.playerA === null || match.playerB === null) return "tournament-match-not-ready";
   const scheduled = [match.playerA, match.playerB].sort().join();
   if (scheduled !== [user.playerId, input.opponentId].sort().join()) return "not-your-tournament-match";
   if (input.format !== tournament.matchFormat) return "wrong-format";
@@ -152,6 +161,7 @@ export function confirmReport(user: PublicUser, reportId: number, now = new Date
     if (report.tournamentMatchId !== null) {
       // Same transaction: the tournament match is played exactly when the match exists.
       setTournamentMatchResult(report.tournamentMatchId, matchId);
+      afterTournamentMatchResult(report.tournamentMatchId, now); // knockout: the winner moves on
     }
     return { ok: true, matchId };
   });

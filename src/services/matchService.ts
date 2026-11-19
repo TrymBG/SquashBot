@@ -15,6 +15,7 @@ import {
   type PlayerRow,
 } from "../db.js";
 import { calculateNewRatings, replayMatches, STARTING_RATING } from "../elo.js";
+import { syncAllKnockouts } from "./tournamentService.js";
 
 export type { MatchRow };
 
@@ -129,6 +130,9 @@ export function undoMatch(matchId: number, requesterId: string): UndoResult {
     for (const [playerId, player] of players) {
       updatePlayerRating(playerId, player.rating);
     }
+
+    // If the undone match was a knockout match, its winner leaves the next round again (same transaction).
+    syncAllKnockouts();
 
     return { ok: true, match: latest };
   });

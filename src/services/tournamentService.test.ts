@@ -50,7 +50,7 @@ function setup(players: PublicUser[], start = true, ranking: "wins" | "points" =
 // Plays a tournament match through the normal report → confirm flow. Scores from `reporter`'s side.
 function playTournamentMatch(t: TournamentDetails, reporter: PublicUser, opponent: PublicUser, mine: number, theirs: number): void {
   const match = t.matches.find(
-    (m) => [m.playerA.id, m.playerB.id].sort().join() === [reporter.playerId, opponent.playerId].sort().join(),
+    (m) => [m.playerA?.id, m.playerB?.id].sort().join() === [reporter.playerId, opponent.playerId].sort().join(),
   );
   assert.ok(match, "no scheduled match between these two");
   const reported = reportResult(reporter, {
@@ -162,7 +162,7 @@ describe("playing tournament matches", () => {
 
   it("shows a reported but unconfirmed match as pending", () => {
     const t = setup([anna, bo, cato]);
-    const match = t.matches.find((m) => [m.playerA.id, m.playerB.id].includes(bo.playerId) && [m.playerA.id, m.playerB.id].includes(anna.playerId))!;
+    const match = t.matches.find((m) => [m.playerA?.id, m.playerB?.id].includes(bo.playerId) && [m.playerA?.id, m.playerB?.id].includes(anna.playerId))!;
 
     reportResult(anna, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: match.id }, NOW);
 
@@ -196,7 +196,7 @@ describe("playing tournament matches", () => {
 
   it("refuses a report that doesn't fit the tournament match", () => {
     const t = setup([anna, bo, cato]);
-    const annaBo = t.matches.find((m) => [m.playerA.id, m.playerB.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
+    const annaBo = t.matches.find((m) => [m.playerA?.id, m.playerB?.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
     const report = (overrides: object, reporter = anna) =>
       reportResult(reporter, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: annaBo.id, ...overrides }, NOW);
 
@@ -241,7 +241,7 @@ describe("listTournaments", () => {
 describe("tournament info for the pages", () => {
   it("a pending tournament match exposes the waiting report (who reported, and the score), and drops it after confirm", () => {
     const t = setup([anna, bo, cato]);
-    const annaBo = t.matches.find((m) => [m.playerA.id, m.playerB.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
+    const annaBo = t.matches.find((m) => [m.playerA?.id, m.playerB?.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
     const reported = reportResult(anna, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: annaBo.id }, NOW);
     assert.ok(reported.ok);
 
@@ -254,7 +254,7 @@ describe("tournament info for the pages", () => {
 
   it("reports and profile matches carry the tournament; normal ones don't", () => {
     const t = setup([anna, bo, cato]);
-    const annaBo = t.matches.find((m) => [m.playerA.id, m.playerB.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
+    const annaBo = t.matches.find((m) => [m.playerA?.id, m.playerB?.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
     const inTournament = reportResult(anna, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: annaBo.id }, NOW);
     const normal = reportResult(anna, { opponentId: bo.playerId, format: "bo3", myGames: 2, opponentGames: 0 }, NOW);
     assert.ok(inTournament.ok && normal.ok);

@@ -31,9 +31,11 @@ const createBody = {
   properties: {
     name: { type: "string", minLength: 1, maxLength: 60, pattern: "\\S" }, // at least one non-space character
     matchFormat: { type: "string", enum: [...MATCH_FORMATS] },
-    ranking: { type: "string", enum: ["wins", "points"] },
+    type: { type: "string", enum: ["round_robin", "knockout"] }, // default round robin
+    ranking: { type: "string", enum: ["wins", "points"] }, // round robin only, default wins
+    thirdPlace: { type: "boolean" }, // knockout only, default false
   },
-  required: ["name", "matchFormat", "ranking"],
+  required: ["name", "matchFormat"],
 } as const;
 
 const addPlayerBody = {
@@ -55,7 +57,7 @@ const changeErrors = {
   "already-in": { status: 409, error: "That player is already in the tournament" },
   "not-in": { status: 404, error: "That player isn't in the tournament" },
   full: { status: 409, error: "The tournament is full" },
-  "too-few-players": { status: 409, error: "A round robin needs at least 3 players" },
+  "too-few-players": { status: 409, error: "Not enough players yet (round robin: 3, knockout: 4)" },
 } as const;
 
 function sendChange(reply: FastifyReply, result: ChangeResult) {
@@ -76,7 +78,9 @@ export async function tournamentRoutes(app: FastifyInstance): Promise<void> {
   app.decorateRequest("user", null);
   app.addHook("onRequest", requireLogin);
 
-  app.post<{ Body: { name: string; matchFormat: string; ranking: "wins" | "points" } }>(
+  app.post<{
+    Body: { name: string; matchFormat: string; type?: "round_robin" | "knockout"; ranking?: "wins" | "points"; thirdPlace?: boolean };
+  }>(
     "/api/tournaments",
     { schema: { body: createBody } },
     async (request, reply) => {
