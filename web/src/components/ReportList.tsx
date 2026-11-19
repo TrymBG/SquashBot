@@ -33,6 +33,7 @@ function Details({ report }: { report: Report }) {
     <span className="text-sm text-slate-400">
       {formatMatchFormat(report.format)} · {formatDate(report.playedAt)}
       {report.tournamentName && <span className="text-amber-300"> · 🏆 {report.tournamentName}</span>}
+      {!report.ranked && <span className="text-sky-300"> · Unranked</span>}
     </span>
   )
 }

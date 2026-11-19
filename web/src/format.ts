@@ -38,12 +38,15 @@ export function formatMatchFormat(format: string): string {
 }
 
 // "Round robin · 15 rallies · ranked by points" / "Knockout · Best of 3 · with 3rd-place match"
-export function describeTournament(t: Pick<TournamentSummary, 'type' | 'matchFormat' | 'ranking' | 'thirdPlace'>): string {
+export function describeTournament(
+  t: Pick<TournamentSummary, 'type' | 'matchFormat' | 'ranking' | 'thirdPlace' | 'ranked'>,
+): string {
   const format = findFormat(t.matchFormat)?.label ?? t.matchFormat
+  const unranked = t.ranked ? '' : ' · unranked'
   if (t.type === 'knockout') {
-    return `Knockout · ${format}${t.thirdPlace ? ' · with 3rd-place match' : ''}`
+    return `Knockout · ${format}${t.thirdPlace ? ' · with 3rd-place match' : ''}${unranked}`
   }
-  return `Round robin · ${format} · ranked by ${t.ranking === 'points' ? 'points' : 'wins'}`
+  return `Round robin · ${format} · ranked by ${t.ranking === 'points' ? 'points' : 'wins'}${unranked}`
 }
 
 // "Draft", "Ongoing 3/6 played", "Finished"

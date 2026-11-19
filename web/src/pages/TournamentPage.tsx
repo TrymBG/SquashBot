@@ -35,6 +35,9 @@ export default function TournamentPage() {
           {describeTournament(t)} · by {t.organizer.displayName} · {statusText(t)}
         </p>
       </header>
+      {t.status === 'active' && !t.finished && t.ranked && (
+        <p className="text-sm text-slate-400">Ratings update when the tournament is finished.</p>
+      )}
       {t.status === 'draft' ? <DraftView t={t} currentUser={currentUser} /> : <ActiveView t={t} currentUser={currentUser} />}
     </div>
   )

@@ -34,6 +34,7 @@ const createBody = {
     type: { type: "string", enum: ["round_robin", "knockout"] }, // default round robin
     ranking: { type: "string", enum: ["wins", "points"] }, // round robin only, default wins
     thirdPlace: { type: "boolean" }, // knockout only, default false
+    ranked: { type: "boolean" }, // default true; false = the matches never change ratings
   },
   required: ["name", "matchFormat"],
 } as const;
@@ -79,7 +80,14 @@ export async function tournamentRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("onRequest", requireLogin);
 
   app.post<{
-    Body: { name: string; matchFormat: string; type?: "round_robin" | "knockout"; ranking?: "wins" | "points"; thirdPlace?: boolean };
+    Body: {
+      name: string;
+      matchFormat: string;
+      type?: "round_robin" | "knockout";
+      ranking?: "wins" | "points";
+      thirdPlace?: boolean;
+      ranked?: boolean;
+    };
   }>(
     "/api/tournaments",
     { schema: { body: createBody } },

@@ -4,7 +4,7 @@
 // gets its own cached pages and a fresh start when the filters change.
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { fetchPlayerMatches, type MatchFilters } from '../api.ts'
+import { fetchPlayerMatches, type MatchFilters, type PlayerMatch } from '../api.ts'
 import { formatDate, formatMatchFormat, formatRatingChange } from '../format.ts'
 import Avatar from './Avatar.tsx'
 import ResultBadge from './ResultBadge.tsx'
@@ -27,7 +27,6 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
     <div>
       <ul className="divide-y divide-slate-800">
         {matches.map((match) => {
-          const change = formatRatingChange(match.ratingBefore, match.ratingAfter)
           return (
             <li key={match.matchId} className="flex items-center gap-3 py-3">
               <ResultBadge result={match.won ? 'W' : 'L'} />
@@ -45,9 +44,7 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
               </span>
               <span className="w-10 text-sm text-slate-400">{formatMatchFormat(match.format)}</span>
               <span className="hidden w-28 text-sm text-slate-400 sm:inline">{formatDate(match.playedAt)}</span>
-              <span className={`w-12 text-right font-semibold tabular-nums ${match.won ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {change}
-              </span>
+              <RatingChange match={match} />
             </li>
           )
         })}
@@ -64,5 +61,22 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
         </button>
       )}
     </div>
+  )
+}
+
+// "+16" / "−12" for a rated match; "Unranked" for a match that never counts; "Pending" for a ranked tournament
+// match whose tournament hasn't finished yet (it's rated when it does).
+function RatingChange({ match }: { match: PlayerMatch }) {
+  if (match.ratingBefore !== null && match.ratingAfter !== null) {
+    return (
+      <span className={`w-16 text-right font-semibold tabular-nums ${match.won ? 'text-emerald-400' : 'text-rose-400'}`}>
+        {formatRatingChange(match.ratingBefore, match.ratingAfter)}
+      </span>
+    )
+  }
+  return (
+    <span className="w-16 text-right text-xs text-slate-500" title={match.ranked ? 'Rated when the tournament is finished' : undefined}>
+      {match.ranked ? 'Pending' : 'Unranked'}
+    </span>
   )
 }
