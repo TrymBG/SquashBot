@@ -2,6 +2,7 @@
 // and then tell the cache what's out of date ("invalidate"), so TanStack Query refetches it.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { cancelReport, confirmReport, createReport, fetchOpponents, fetchReports, rejectReport } from './api.ts'
+import { invalidateTournaments } from './tournaments.ts'
 
 const REPORTS = ['reports']
 
@@ -18,7 +19,8 @@ export function useCreateReport() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createReport,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REPORTS }),
+    // A tournament match moves to/from "waiting for confirmation", so refresh the tournament pages too.
+    onSuccess: () => Promise.all([queryClient.invalidateQueries({ queryKey: REPORTS }), invalidateTournaments(queryClient)]),
   })
 }
 
@@ -35,7 +37,8 @@ export function useRejectReport() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: rejectReport,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REPORTS }),
+    // A tournament match moves to/from "waiting for confirmation", so refresh the tournament pages too.
+    onSuccess: () => Promise.all([queryClient.invalidateQueries({ queryKey: REPORTS }), invalidateTournaments(queryClient)]),
   })
 }
 
@@ -43,6 +46,7 @@ export function useCancelReport() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: cancelReport,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: REPORTS }),
+    // A tournament match moves to/from "waiting for confirmation", so refresh the tournament pages too.
+    onSuccess: () => Promise.all([queryClient.invalidateQueries({ queryKey: REPORTS }), invalidateTournaments(queryClient)]),
   })
 }

@@ -6,6 +6,8 @@ import LoginPage from './pages/LoginPage.tsx'
 import PlayerPage from './pages/PlayerPage.tsx'
 import ResultsPage from './pages/ResultsPage.tsx'
 import SignupPage from './pages/SignupPage.tsx'
+import TournamentPage from './pages/TournamentPage.tsx'
+import TournamentsPage from './pages/TournamentsPage.tsx'
 import { useReports } from './reports.ts'
 
 export default function App() {
@@ -13,9 +15,14 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
-          <Link to="/" className="text-lg font-bold tracking-tight">
-            Squash Ladder
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link to="/" className="text-lg font-bold tracking-tight">
+              Squash Ladder
+            </Link>
+            <Link to="/tournaments" className="text-sm text-slate-300 hover:underline">
+              Tournaments
+            </Link>
+          </div>
           <AccountMenu />
         </div>
       </header>
@@ -27,6 +34,8 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/results" element={<ResultsPage />} />
+          <Route path="/tournaments" element={<TournamentsPage />} />
+          <Route path="/tournaments/:id" element={<TournamentPage />} />
           <Route path="*" element={<p className="text-slate-400">Page not found.</p>} />
         </Routes>
       </main>

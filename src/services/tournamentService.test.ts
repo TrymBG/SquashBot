@@ -8,6 +8,7 @@ import { signupUser } from "../testHelpers.js";
 import type { PublicUser } from "./authService.js";
 import { undoMatch } from "./matchService.js";
 import { confirmReport, reportResult } from "./reportService.js";
+import { getPlayerMatches } from "./statsService.js";
 import {
   addPlayer,
   createTournament,
@@ -234,5 +235,37 @@ describe("listTournaments", () => {
         ["Winter cup", "active", 3, 3, 0],
       ],
     );
+  });
+});
+
+describe("tournament info for the pages", () => {
+  it("a pending tournament match exposes the waiting report (who reported, and the score), and drops it after confirm", () => {
+    const t = setup([anna, bo, cato]);
+    const annaBo = t.matches.find((m) => [m.playerA.id, m.playerB.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
+    const reported = reportResult(anna, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: annaBo.id }, NOW);
+    assert.ok(reported.ok);
+
+    const pending = getTournamentDetails(t.id)!.matches.find((m) => m.id === annaBo.id)!;
+    assert.deepEqual(pending.pendingReport, { id: reported.report.id, reporterId: anna.playerId, reporterScore: 8, opponentScore: 7 });
+
+    confirmReport(bo, reported.report.id, NOW);
+    assert.equal(getTournamentDetails(t.id)!.matches.find((m) => m.id === annaBo.id)!.pendingReport, null);
+  });
+
+  it("reports and profile matches carry the tournament; normal ones don't", () => {
+    const t = setup([anna, bo, cato]);
+    const annaBo = t.matches.find((m) => [m.playerA.id, m.playerB.id].sort().join() === [anna.playerId, bo.playerId].sort().join())!;
+    const inTournament = reportResult(anna, { opponentId: bo.playerId, format: "r15", myGames: 8, opponentGames: 7, tournamentMatchId: annaBo.id }, NOW);
+    const normal = reportResult(anna, { opponentId: bo.playerId, format: "bo3", myGames: 2, opponentGames: 0 }, NOW);
+    assert.ok(inTournament.ok && normal.ok);
+
+    assert.equal(inTournament.report.tournamentName, "Winter cup");
+    assert.equal(normal.report.tournamentName, null);
+
+    confirmReport(bo, inTournament.report.id, NOW);
+    confirmReport(bo, normal.report.id, NOW);
+    const matches = getPlayerMatches(anna.playerId, { limit: 20 })!.matches; // newest first
+    assert.equal(matches[0]!.tournament, null);
+    assert.deepEqual(matches[1]!.tournament, { id: t.id, name: "Winter cup" });
   });
 });

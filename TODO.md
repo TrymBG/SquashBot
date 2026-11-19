@@ -97,8 +97,9 @@ Each milestone planned in plan mode.
     tournament matches count for Elo
   - Candidates for writing by hand (like `elo.ts`): the bracket function, the round-robin schedule and the standings/tiebreak function
   - Maybe split: T1a shared tables + knockout, T1b round robin (decide in plan mode)
-- [ ] T2 Tournaments, frontend: create (pick format), add players, start; bracket view (knockout) and schedule + standings table
-      (round robin); report a tournament match from there; "Tournament" label on profile matches
+- [x] T2 Tournaments, frontend (round robin): `/tournaments` (list + create form), `/tournaments/:id` (draft: players + start;
+      active: standings + schedule by round, report/confirm/reject/cancel right on the match); 🏆 label in /results and on profiles
+  - [ ] Knockout bracket view: comes with T1b
 - [ ] Later: groups → knockout (round-robin groups, top players into a bracket), double round robin
 - [ ] D1 Design pass (user has input, discuss first)
 - [ ] Invite friends (after W5b hosting)

@@ -368,6 +368,7 @@ export interface PlayerMatchRow {
   opponentGames: number;
   ratingBefore: number;
   ratingAfter: number;
+  tournament: { id: number; name: string } | null; // set when the match was part of a tournament
 }
 
 export interface PlayerMatchFilter {
@@ -388,10 +389,13 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
       m.winner_id = h.player_id AS won,
       CASE WHEN m.winner_id = h.player_id THEN m.winner_games ELSE m.loser_games END AS my_games,
       CASE WHEN m.winner_id = h.player_id THEN m.loser_games ELSE m.winner_games END AS opponent_games,
-      h.rating_before, h.rating_after
+      h.rating_before, h.rating_after,
+      t.id AS tournament_id, t.name AS tournament_name
     FROM matches m
     JOIN rating_history h ON h.match_id = m.id AND h.player_id = :playerId
     JOIN players o ON o.id = CASE WHEN m.winner_id = h.player_id THEN m.loser_id ELSE m.winner_id END
+    LEFT JOIN tournament_matches tm ON tm.match_id = m.id
+    LEFT JOIN tournaments t ON t.id = tm.tournament_id
     WHERE (:before IS NULL OR m.id < :before)
       AND (:opponentId IS NULL OR o.id = :opponentId)
       AND (:format IS NULL OR m.format = :format)
@@ -415,6 +419,8 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
     opponent_games: number;
     rating_before: number;
     rating_after: number;
+    tournament_id: number | null;
+    tournament_name: string | null;
   }[];
 
   return rows.map((row) => ({
@@ -429,6 +435,7 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
     opponentGames: row.opponent_games,
     ratingBefore: row.rating_before,
     ratingAfter: row.rating_after,
+    tournament: row.tournament_id === null ? null : { id: row.tournament_id, name: row.tournament_name! },
   }));
 }
 
@@ -552,6 +559,7 @@ export interface ReportRow extends NewReport {
   status: ReportStatus;
   createdAt: string;
   tournamentMatchId: number | null; // always known when read back (not optional like in NewReport)
+  tournamentName: string | null; // for the "🏆 Winter cup" label
 }
 
 // Saves a new pending report and returns its id.
@@ -576,10 +584,13 @@ export function insertReport(report: NewReport, createdAt: string): number {
 const REPORT_SELECT = `
   SELECT
     r.id, r.reporter_id, rp.display_name AS reporter_name, r.opponent_id, op.display_name AS opponent_name,
-    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at, r.tournament_match_id
+    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at, r.tournament_match_id,
+    t.name AS tournament_name
   FROM match_reports r
   JOIN players rp ON rp.id = r.reporter_id
   JOIN players op ON op.id = r.opponent_id
+  LEFT JOIN tournament_matches rtm ON rtm.id = r.tournament_match_id
+  LEFT JOIN tournaments t ON t.id = rtm.tournament_id
 `;
 
 interface ReportDbRow {
@@ -595,6 +606,7 @@ interface ReportDbRow {
   status: ReportStatus;
   created_at: string;
   tournament_match_id: number | null;
+  tournament_name: string | null;
 }
 
 function toReportRow(row: ReportDbRow): ReportRow {
@@ -611,6 +623,7 @@ function toReportRow(row: ReportDbRow): ReportRow {
     status: row.status,
     createdAt: row.created_at,
     tournamentMatchId: row.tournament_match_id,
+    tournamentName: row.tournament_name,
   };
 }
 
@@ -815,7 +828,8 @@ export interface TournamentMatchRow {
   matchId: number | null;
   scoreA: number | null;
   scoreB: number | null;
-  pendingReportId: number | null;
+  // The report waiting for confirmation, if any (at most one: a second report is refused while one is pending).
+  pendingReport: { id: number; reporterId: string; reporterScore: number; opponentScore: number } | null;
 }
 
 const TOURNAMENT_MATCH_SELECT = `
@@ -823,9 +837,11 @@ const TOURNAMENT_MATCH_SELECT = `
     tm.id, tm.tournament_id, tm.round, tm.player_a, tm.player_b, tm.match_id,
     CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.winner_games ELSE m.loser_games END AS score_a,
     CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.loser_games ELSE m.winner_games END AS score_b,
-    (SELECT r.id FROM match_reports r WHERE r.tournament_match_id = tm.id AND r.status = 'pending') AS pending_report_id
+    pr.id AS pending_report_id, pr.reporter_id AS pending_reporter_id,
+    pr.reporter_games AS pending_reporter_score, pr.opponent_games AS pending_opponent_score
   FROM tournament_matches tm
   LEFT JOIN matches m ON m.id = tm.match_id
+  LEFT JOIN match_reports pr ON pr.tournament_match_id = tm.id AND pr.status = 'pending'
 `;
 
 interface TournamentMatchDbRow {
@@ -838,6 +854,9 @@ interface TournamentMatchDbRow {
   score_a: number | null;
   score_b: number | null;
   pending_report_id: number | null;
+  pending_reporter_id: string | null;
+  pending_reporter_score: number | null;
+  pending_opponent_score: number | null;
 }
 
 function toTournamentMatchRow(row: TournamentMatchDbRow): TournamentMatchRow {
@@ -850,7 +869,15 @@ function toTournamentMatchRow(row: TournamentMatchDbRow): TournamentMatchRow {
     matchId: row.match_id,
     scoreA: row.score_a,
     scoreB: row.score_b,
-    pendingReportId: row.pending_report_id,
+    pendingReport:
+      row.pending_report_id === null
+        ? null
+        : {
+            id: row.pending_report_id,
+            reporterId: row.pending_reporter_id!,
+            reporterScore: row.pending_reporter_score!,
+            opponentScore: row.pending_opponent_score!,
+          },
   };
 }
 

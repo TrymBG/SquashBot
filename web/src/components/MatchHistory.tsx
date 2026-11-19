@@ -35,6 +35,11 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
                 <Avatar name={match.opponentName} url={match.opponentAvatarUrl} />
                 <span className="truncate">{match.opponentName}</span>
               </Link>
+              {match.tournament && (
+                <Link to={`/tournaments/${match.tournament.id}`} className="truncate text-xs text-amber-300 hover:underline">
+                  🏆 {match.tournament.name}
+                </Link>
+              )}
               <span className="font-semibold tabular-nums">
                 {match.myGames}–{match.opponentGames}
               </span>

@@ -32,6 +32,7 @@ function Details({ report }: { report: Report }) {
   return (
     <span className="text-sm text-slate-400">
       {formatMatchFormat(report.format)} · {formatDate(report.playedAt)}
+      {report.tournamentName && <span className="text-amber-300"> · 🏆 {report.tournamentName}</span>}
     </span>
   )
 }
