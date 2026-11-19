@@ -82,9 +82,43 @@ function initSchema(): void {
       -- SET NULL: if the match is undone later, the report stays but loses its link.
       match_id       INTEGER REFERENCES matches(id) ON DELETE SET NULL
     );
+
+    -- Tournaments. "finished" isn't stored: a tournament is finished when every one of its matches is played.
+    CREATE TABLE IF NOT EXISTS tournaments (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      name         TEXT NOT NULL,
+      type         TEXT NOT NULL CHECK (type IN ('round_robin', 'knockout')),
+      match_format TEXT NOT NULL,
+      ranking      TEXT CHECK (ranking IN ('wins', 'points')), -- round robin only
+      status       TEXT NOT NULL CHECK (status IN ('draft', 'active')),
+      organizer_id TEXT NOT NULL REFERENCES players(id),
+      created_at   TEXT NOT NULL,
+      started_at   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS tournament_players (
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      player_id     TEXT NOT NULL REFERENCES players(id),
+      added_at      TEXT NOT NULL,
+      PRIMARY KEY (tournament_id, player_id)
+    );
+
+    -- The scheduled matches of a tournament. match_id is set when a result is confirmed; SET NULL: if that match is
+    -- undone later, the tournament match is simply unplayed again.
+    CREATE TABLE IF NOT EXISTS tournament_matches (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      round         INTEGER NOT NULL,
+      player_a      TEXT NOT NULL REFERENCES players(id),
+      player_b      TEXT NOT NULL REFERENCES players(id),
+      match_id      INTEGER REFERENCES matches(id) ON DELETE SET NULL,
+      UNIQUE (tournament_id, player_a, player_b)
+    );
   `);
 
   addColumnIfMissing("players", "avatar_url", "TEXT");
+  // A web report can belong to a scheduled tournament match.
+  addColumnIfMissing("match_reports", "tournament_match_id", "INTEGER REFERENCES tournament_matches(id)");
 }
 
 // Migration for databases created before a column existed. CREATE TABLE IF NOT EXISTS never changes an existing table.
@@ -507,6 +541,7 @@ export interface NewReport {
   reporterGames: number;
   opponentGames: number;
   playedAt: string;
+  tournamentMatchId?: number | null | undefined; // set when the report is for a scheduled tournament match
 }
 
 // A report with both players' names, as the website shows it.
@@ -516,13 +551,15 @@ export interface ReportRow extends NewReport {
   opponentName: string;
   status: ReportStatus;
   createdAt: string;
+  tournamentMatchId: number | null; // always known when read back (not optional like in NewReport)
 }
 
 // Saves a new pending report and returns its id.
 export function insertReport(report: NewReport, createdAt: string): number {
   const result = db.prepare(`
-    INSERT INTO match_reports (reporter_id, opponent_id, format, reporter_games, opponent_games, played_at, status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+    INSERT INTO match_reports
+      (reporter_id, opponent_id, format, reporter_games, opponent_games, played_at, status, created_at, tournament_match_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `).run(
     report.reporterId,
     report.opponentId,
@@ -531,6 +568,7 @@ export function insertReport(report: NewReport, createdAt: string): number {
     report.opponentGames,
     report.playedAt,
     createdAt,
+    report.tournamentMatchId ?? null,
   );
   return Number(result.lastInsertRowid);
 }
@@ -538,7 +576,7 @@ export function insertReport(report: NewReport, createdAt: string): number {
 const REPORT_SELECT = `
   SELECT
     r.id, r.reporter_id, rp.display_name AS reporter_name, r.opponent_id, op.display_name AS opponent_name,
-    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at
+    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at, r.tournament_match_id
   FROM match_reports r
   JOIN players rp ON rp.id = r.reporter_id
   JOIN players op ON op.id = r.opponent_id
@@ -556,6 +594,7 @@ interface ReportDbRow {
   played_at: string;
   status: ReportStatus;
   created_at: string;
+  tournament_match_id: number | null;
 }
 
 function toReportRow(row: ReportDbRow): ReportRow {
@@ -571,6 +610,7 @@ function toReportRow(row: ReportDbRow): ReportRow {
     playedAt: row.played_at,
     status: row.status,
     createdAt: row.created_at,
+    tournamentMatchId: row.tournament_match_id,
   };
 }
 
@@ -632,4 +672,201 @@ export function checkDatabase(): void {
 // -wal file. Safe while the app is running, unlike copying the file, which can miss recent writes.
 export function vacuumInto(path: string): void {
   db.prepare("VACUUM INTO ?").run(path);
+}
+
+// ---- Tournaments ----
+
+export type TournamentType = "round_robin" | "knockout";
+export type TournamentRanking = "wins" | "points";
+
+export interface NewTournament {
+  name: string;
+  type: TournamentType;
+  matchFormat: string;
+  ranking: TournamentRanking | null;
+  organizerId: string;
+}
+
+export interface TournamentRow extends NewTournament {
+  id: number;
+  organizerName: string;
+  status: "draft" | "active";
+  createdAt: string;
+  startedAt: string | null;
+  playerCount: number;
+  matchCount: number;
+  playedCount: number;
+}
+
+export function insertTournament(tournament: NewTournament, createdAt: string): number {
+  const result = db.prepare(`
+    INSERT INTO tournaments (name, type, match_format, ranking, status, organizer_id, created_at)
+    VALUES (?, ?, ?, ?, 'draft', ?, ?)
+  `).run(tournament.name, tournament.type, tournament.matchFormat, tournament.ranking, tournament.organizerId, createdAt);
+  return Number(result.lastInsertRowid);
+}
+
+const TOURNAMENT_SELECT = `
+  SELECT
+    t.id, t.name, t.type, t.match_format, t.ranking, t.status, t.organizer_id, o.display_name AS organizer_name,
+    t.created_at, t.started_at,
+    (SELECT COUNT(*) FROM tournament_players tp WHERE tp.tournament_id = t.id) AS player_count,
+    (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_id = t.id) AS match_count,
+    (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_id = t.id AND tm.match_id IS NOT NULL) AS played_count
+  FROM tournaments t
+  JOIN players o ON o.id = t.organizer_id
+`;
+
+interface TournamentDbRow {
+  id: number;
+  name: string;
+  type: TournamentType;
+  match_format: string;
+  ranking: TournamentRanking | null;
+  status: "draft" | "active";
+  organizer_id: string;
+  organizer_name: string;
+  created_at: string;
+  started_at: string | null;
+  player_count: number;
+  match_count: number;
+  played_count: number;
+}
+
+function toTournamentRow(row: TournamentDbRow): TournamentRow {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    matchFormat: row.match_format,
+    ranking: row.ranking,
+    status: row.status,
+    organizerId: row.organizer_id,
+    organizerName: row.organizer_name,
+    createdAt: row.created_at,
+    startedAt: row.started_at,
+    playerCount: row.player_count,
+    matchCount: row.match_count,
+    playedCount: row.played_count,
+  };
+}
+
+export function getTournament(id: number): TournamentRow | undefined {
+  const row = db.prepare(`${TOURNAMENT_SELECT} WHERE t.id = ?`).get(id) as unknown as TournamentDbRow | undefined;
+  return row && toTournamentRow(row);
+}
+
+// Newest first.
+export function getTournaments(): TournamentRow[] {
+  const rows = db.prepare(`${TOURNAMENT_SELECT} ORDER BY t.id DESC`).all() as unknown as TournamentDbRow[];
+  return rows.map(toTournamentRow);
+}
+
+export function setTournamentActive(id: number, startedAt: string): void {
+  db.prepare("UPDATE tournaments SET status = 'active', started_at = ? WHERE id = ?").run(startedAt, id);
+}
+
+export interface TournamentPlayerRow {
+  playerId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  rating: number;
+}
+
+export function addTournamentPlayer(tournamentId: number, playerId: string, addedAt: string): void {
+  db.prepare("INSERT INTO tournament_players (tournament_id, player_id, added_at) VALUES (?, ?, ?)").run(tournamentId, playerId, addedAt);
+}
+
+// Returns false if the player wasn't in the tournament.
+export function removeTournamentPlayer(tournamentId: number, playerId: string): boolean {
+  const result = db.prepare("DELETE FROM tournament_players WHERE tournament_id = ? AND player_id = ?").run(tournamentId, playerId);
+  return Number(result.changes) === 1;
+}
+
+// In the order they joined (the schedule is built from this order, so it's stable).
+export function getTournamentPlayers(tournamentId: number): TournamentPlayerRow[] {
+  const rows = db.prepare(`
+    SELECT p.id, p.display_name, p.avatar_url, p.rating
+    FROM tournament_players tp
+    JOIN players p ON p.id = tp.player_id
+    WHERE tp.tournament_id = ?
+    ORDER BY tp.added_at, tp.rowid
+  `).all(tournamentId) as { id: string; display_name: string; avatar_url: string | null; rating: number }[];
+  return rows.map((row) => ({ playerId: row.id, displayName: row.display_name, avatarUrl: row.avatar_url, rating: row.rating }));
+}
+
+export function insertTournamentMatch(tournamentId: number, round: number, playerA: string, playerB: string): void {
+  db.prepare("INSERT INTO tournament_matches (tournament_id, round, player_a, player_b) VALUES (?, ?, ?, ?)").run(
+    tournamentId,
+    round,
+    playerA,
+    playerB,
+  );
+}
+
+// A scheduled tournament match with its result (scores from player A's side) once played, and whether a report
+// for it is waiting for confirmation.
+export interface TournamentMatchRow {
+  id: number;
+  tournamentId: number;
+  round: number;
+  playerA: string;
+  playerB: string;
+  matchId: number | null;
+  scoreA: number | null;
+  scoreB: number | null;
+  pendingReportId: number | null;
+}
+
+const TOURNAMENT_MATCH_SELECT = `
+  SELECT
+    tm.id, tm.tournament_id, tm.round, tm.player_a, tm.player_b, tm.match_id,
+    CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.winner_games ELSE m.loser_games END AS score_a,
+    CASE WHEN m.id IS NULL THEN NULL WHEN m.winner_id = tm.player_a THEN m.loser_games ELSE m.winner_games END AS score_b,
+    (SELECT r.id FROM match_reports r WHERE r.tournament_match_id = tm.id AND r.status = 'pending') AS pending_report_id
+  FROM tournament_matches tm
+  LEFT JOIN matches m ON m.id = tm.match_id
+`;
+
+interface TournamentMatchDbRow {
+  id: number;
+  tournament_id: number;
+  round: number;
+  player_a: string;
+  player_b: string;
+  match_id: number | null;
+  score_a: number | null;
+  score_b: number | null;
+  pending_report_id: number | null;
+}
+
+function toTournamentMatchRow(row: TournamentMatchDbRow): TournamentMatchRow {
+  return {
+    id: row.id,
+    tournamentId: row.tournament_id,
+    round: row.round,
+    playerA: row.player_a,
+    playerB: row.player_b,
+    matchId: row.match_id,
+    scoreA: row.score_a,
+    scoreB: row.score_b,
+    pendingReportId: row.pending_report_id,
+  };
+}
+
+export function getTournamentMatch(id: number): TournamentMatchRow | undefined {
+  const row = db.prepare(`${TOURNAMENT_MATCH_SELECT} WHERE tm.id = ?`).get(id) as unknown as TournamentMatchDbRow | undefined;
+  return row && toTournamentMatchRow(row);
+}
+
+// By round, in schedule order.
+export function getTournamentMatches(tournamentId: number): TournamentMatchRow[] {
+  const rows = db.prepare(`${TOURNAMENT_MATCH_SELECT} WHERE tm.tournament_id = ? ORDER BY tm.round, tm.id`).all(
+    tournamentId,
+  ) as unknown as TournamentMatchDbRow[];
+  return rows.map(toTournamentMatchRow);
+}
+
+export function setTournamentMatchResult(tournamentMatchId: number, matchId: number): void {
+  db.prepare("UPDATE tournament_matches SET match_id = ? WHERE id = ?").run(matchId, tournamentMatchId);
 }

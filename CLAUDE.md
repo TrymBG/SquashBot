@@ -50,8 +50,9 @@ src/
     server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
     routes.ts           # GET /api/health, /api/leaderboard, /api/players/:id, /api/players/:id/matches?limit&before&opponent&format, /api/h2h/:id/:opponentId (Fastify schemas validate input)
     authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
-    reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports, POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
-    server.test.ts, authRoutes.test.ts, reportRoutes.test.ts
+    reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
+    tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start
+    server.test.ts, authRoutes.test.ts, reportRoutes.test.ts, tournamentRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
     ping.ts, result.ts, leaderboard.ts, undo.ts   # stats.ts, h2h.ts are empty placeholders
@@ -64,6 +65,11 @@ src/
     authService.test.ts
     reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
     reportService.test.ts
+    tournamentService.ts  # create (draft) → add/remove players (organizer) → start (writes the schedule) → details with standings
+    tournamentService.test.ts
+  tournaments/          # pure tournament logic, no DB (like elo.ts)
+    schedule.ts         # roundRobinSchedule: circle method, byes for odd counts (+ schedule.test.ts)
+    standings.ts        # roundRobinStandings: wins | points, head-to-head mini-league tiebreak, shared places (+ standings.test.ts)
   db.test.ts            # reentrant transaction()
   backups.ts            # backupDatabase(dir): VACUUM INTO a dated file, keep the newest 14 (+ backups.test.ts)
   backup.ts             # entry for npm run backup
@@ -98,7 +104,9 @@ web/
 - `elo.ts` is pure math with no imports, tested in isolation.
 
 ## Database design
-- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept).
+- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept; optional `tournament_match_id`),
+  `tournaments` (`type` round_robin | knockout, `match_format`, `ranking` wins | points, `status` draft | active; "finished" is computed),
+  `tournament_players`, `tournament_matches` (scheduled pairing per round; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again).
 - Web players get a UUID as player id (36 chars; Discord ids are numeric), so route schemas allow ids up to 64 chars.
 - Players are identified by Discord user ID, stored as TEXT (64-bit, unsafe as a JS `number`).
 - `players.display_name` and `players.avatar_url` are refreshed every time the player plays, so the website never calls Discord. `avatar_url` can be NULL (seed players).
@@ -140,12 +148,14 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 144 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 190 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history with opponent/format filters).
-- Next feature work: TODO.md section 5 (T1 tournaments backend: knockout + round robin), plan in plan mode.
+- Round-robin tournaments backend works (T1a): create, players, start (circle-method schedule), matches via report → confirm (count for Elo),
+  standings by wins or points with head-to-head tiebreak. Tournament rules: 3–16 players with web accounts; only the organizer changes it; only while draft.
+- Next feature work: TODO.md section 5: T2 (tournament pages) or T1b (knockout backend), plan in plan mode.
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.
