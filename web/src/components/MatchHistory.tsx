@@ -1,17 +1,18 @@
-// A player's matches, newest first, 20 at a time with a "Load more" button.
+// A player's matches, newest first, 20 at a time with a "Load more" button, optionally filtered.
 // useInfiniteQuery keeps every loaded page; each next page asks for the matches older than the last one
-// shown (the API's `nextBefore` cursor).
+// shown (the API's `nextBefore` cursor). The filters are part of the query key, so each filter combination
+// gets its own cached pages and a fresh start when the filters change.
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { fetchPlayerMatches } from '../api.ts'
+import { fetchPlayerMatches, type MatchFilters } from '../api.ts'
 import { formatDate, formatMatchFormat, formatRatingChange } from '../format.ts'
 import Avatar from './Avatar.tsx'
 import ResultBadge from './ResultBadge.tsx'
 
-export default function MatchHistory({ playerId }: { playerId: string }) {
+export default function MatchHistory({ playerId, filters = {} }: { playerId: string; filters?: MatchFilters }) {
   const { data, isPending, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ['playerMatches', playerId],
-    queryFn: ({ pageParam }) => fetchPlayerMatches(playerId, pageParam),
+    queryKey: ['playerMatches', playerId, filters],
+    queryFn: ({ pageParam }) => fetchPlayerMatches(playerId, filters, pageParam),
     initialPageParam: undefined as number | undefined, // the first page has no cursor
     getNextPageParam: (lastPage) => lastPage.nextBefore ?? undefined, // undefined = no more pages
   })
@@ -20,6 +21,7 @@ export default function MatchHistory({ playerId }: { playerId: string }) {
   if (isError) return <p className="text-red-400">Could not load the match history.</p>
 
   const matches = data.pages.flatMap((page) => page.matches)
+  if (matches.length === 0) return <p className="text-slate-400">No matches with these filters.</p>
 
   return (
     <div>

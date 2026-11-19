@@ -48,7 +48,7 @@ src/
   deploy-commands.ts    # registers slash commands with Discord
   api/                  # website API (thin like commands/: call a service, return JSON)
     server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
-    routes.ts           # GET /api/leaderboard, /api/players/:id(/matches), /api/h2h/:id/:opponentId (Fastify schemas validate input)
+    routes.ts           # GET /api/health, /api/leaderboard, /api/players/:id, /api/players/:id/matches?limit&before&opponent&format, /api/h2h/:id/:opponentId (Fastify schemas validate input)
     authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports, POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     server.test.ts, authRoutes.test.ts, reportRoutes.test.ts
@@ -58,7 +58,7 @@ src/
   services/             # business logic, shared by bot and later the API
     matchService.ts     # recordMatch, undoMatch, canUndo
     matchService.test.ts
-    statsService.ts     # getLeaderboard, getPlayerProfile, getPlayerMatches (cursor paging), getHeadToHead
+    statsService.ts     # getLeaderboard, getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
     statsService.test.ts
     authService.ts      # signup (invite code), login, logout, getUserForSession; `now` parameter for testable expiry
     authService.test.ts
@@ -86,7 +86,7 @@ web/
     reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
     pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login)
-    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, TextField, ReportForm, ReportList
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -136,11 +136,12 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 110 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 116 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
-- Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history).
+- Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history with opponent/format filters).
+- Next feature work: TODO.md section 5 (T1 tournaments backend: knockout + round robin), plan in plan mode.
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.

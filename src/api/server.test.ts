@@ -88,10 +88,24 @@ describe("GET /api/players/:id/matches", () => {
   it("rejects an invalid limit or cursor with 400", async () => {
     play("trym", "ola", 3, 0);
 
-    for (const query of ["limit=0", "limit=101", "limit=abc", "before=-1", "before=1.5"]) {
+    for (const query of ["limit=0", "limit=101", "limit=abc", "before=-1", "before=1.5", "format=bo7", "opponent="]) {
       const { status } = await get(`/api/players/trym/matches?${query}`);
       assert.equal(status, 400, query);
     }
+  });
+
+  it("filters by opponent and format", async () => {
+    play("trym", "ola", 2, 0, "bo3");
+    play("trym", "ola", 3, 1);
+    play("trym", "kari", 2, 1, "bo3");
+
+    const { status, body } = await get("/api/players/trym/matches?opponent=ola&format=bo3");
+
+    assert.equal(status, 200);
+    assert.deepEqual(
+      body.matches.map((m: { opponentId: string; format: string }) => [m.opponentId, m.format]),
+      [["ola", "bo3"]],
+    );
   });
 
   it("returns 404 for an unknown player", async () => {

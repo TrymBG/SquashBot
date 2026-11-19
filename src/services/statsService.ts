@@ -34,6 +34,17 @@ export interface PlayerProfile {
   streak: { result: Result; count: number } | null;
   recentForm: Result[]; // newest first
   ratingHistory: { matchId: number; playedAt: string; rating: number }[]; // oldest first, for the chart
+  opponents: OpponentRecord[]; // everyone they've played, most played first (the match-history filter uses it)
+}
+
+// One opponent and the player's record against them.
+export interface OpponentRecord {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  played: number;
+  wins: number;
+  losses: number;
 }
 
 // Everything the profile page shows, or undefined if the player doesn't exist.
@@ -68,7 +79,29 @@ export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
     ratingHistory: matches
       .map((m) => ({ matchId: m.matchId, playedAt: m.playedAt, rating: m.ratingAfter }))
       .reverse(),
+    opponents: opponentRecords(matches),
   };
+}
+
+// Groups a player's matches by opponent. A Map keeps one record per opponent id, like a HashMap<String, Record> in Java.
+// Most played first; ties by name, so the order is stable.
+function opponentRecords(matches: PlayerMatchRow[]): OpponentRecord[] {
+  const byOpponent = new Map<string, OpponentRecord>();
+  for (const match of matches) {
+    const record = byOpponent.get(match.opponentId) ?? {
+      id: match.opponentId,
+      displayName: match.opponentName,
+      avatarUrl: match.opponentAvatarUrl,
+      played: 0,
+      wins: 0,
+      losses: 0,
+    };
+    record.played++;
+    if (match.won) record.wins++;
+    else record.losses++;
+    byOpponent.set(match.opponentId, record);
+  }
+  return [...byOpponent.values()].sort((a, b) => b.played - a.played || a.displayName.localeCompare(b.displayName));
 }
 
 export interface MatchPage {
@@ -76,13 +109,21 @@ export interface MatchPage {
   nextBefore: number | null; // pass as `before` to get the next (older) page, null on the last page
 }
 
-// One page of a player's match history, newest first (cursor paging: "the `limit` matches older than `before`").
-// Undefined if the player doesn't exist.
-export function getPlayerMatches(playerId: string, limit: number, before?: number): MatchPage | undefined {
+export interface MatchQuery {
+  limit: number;
+  before?: number | undefined; // cursor: only matches older than this match id
+  opponentId?: string | undefined; // filter: only matches against this player
+  format?: string | undefined; // filter: only matches in this format
+}
+
+// One page of a player's match history, newest first (cursor paging: "the `limit` matches older than `before`"),
+// optionally filtered by opponent and/or format. The cursor pages inside the filter. Undefined if the player doesn't exist.
+export function getPlayerMatches(playerId: string, query: MatchQuery): MatchPage | undefined {
   if (!getPlayer(playerId)) {
     return undefined;
   }
-  const matches = queryPlayerMatches(playerId, { limit, before });
+  const { limit } = query;
+  const matches = queryPlayerMatches(playerId, query);
   // A full page means there may be more. An extra empty request at the very end is the accepted cost.
   const last = matches.at(-1);
   return { matches, nextBefore: matches.length === limit && last ? last.matchId : null };
