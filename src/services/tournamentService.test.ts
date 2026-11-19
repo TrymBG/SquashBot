@@ -141,7 +141,7 @@ describe("players and starting", () => {
 });
 
 describe("playing tournament matches", () => {
-  it("a confirmed tournament match counts for Elo and updates the standings (points: the loser keeps theirs)", () => {
+  it("a confirmed tournament match updates the standings at once (points: the loser keeps theirs), but not ratings yet", () => {
     const t = setup([anna, bo, cato]);
 
     playTournamentMatch(t, anna, bo, 8, 7);
@@ -157,7 +157,8 @@ describe("playing tournament matches", () => {
         ["cato", 0],
       ],
     );
-    assert.ok(getPlayer(anna.playerId)!.rating > STARTING_RATING);
+    // Ratings change only when the tournament ends (decided 2026-11-20).
+    assert.equal(getPlayer(anna.playerId)!.rating, STARTING_RATING);
   });
 
   it("shows a reported but unconfirmed match as pending", () => {

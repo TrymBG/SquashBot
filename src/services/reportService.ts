@@ -21,8 +21,8 @@ import {
 } from "../db.js";
 import { isValidScore } from "../validation.js";
 import type { PublicUser } from "./authService.js";
-import { recordMatch } from "./matchService.js";
-import { afterTournamentMatchResult } from "./tournamentService.js";
+import { rateMatches, recordMatch } from "./matchService.js";
+import { afterTournamentMatchResult, matchesToRateIfFinished } from "./tournamentService.js";
 
 export type { OpponentRow, ReportRow };
 
@@ -37,6 +37,7 @@ export interface ReportInput {
   opponentGames: number;
   playedAt?: string | undefined; // UTC ISO timestamp, default now
   tournamentMatchId?: number | undefined; // set when this is a scheduled tournament match
+  ranked?: boolean | undefined; // default true; ignored for tournament matches (they follow the tournament)
 }
 
 export type ReportResult =
@@ -84,9 +85,12 @@ export function reportResult(user: PublicUser, input: ReportInput, now = new Dat
   if (Number.isNaN(playedAt.getTime()) || tooNew || tooOld) {
     return { ok: false, reason: "invalid-date" };
   }
+  // A tournament match is ranked exactly when its tournament is; a normal one as the reporter chose.
+  let ranked = input.ranked ?? true;
   if (input.tournamentMatchId !== undefined) {
     const problem = checkTournamentMatch(user, input);
     if (problem) return { ok: false, reason: problem };
+    ranked = getTournament(getTournamentMatch(input.tournamentMatchId)!.tournamentId)!.ranked;
   }
 
   const id = insertReport(
@@ -98,6 +102,7 @@ export function reportResult(user: PublicUser, input: ReportInput, now = new Dat
       opponentGames: input.opponentGames,
       playedAt: playedAt.toISOString(),
       tournamentMatchId: input.tournamentMatchId ?? null,
+      ranked,
     },
     now.toISOString(),
   );
@@ -156,12 +161,20 @@ export function confirmReport(user: PublicUser, reportId: number, now = new Date
       reporterGames: report.reporterGames,
       opponentGames: report.opponentGames,
       playedAt: report.playedAt,
+    }, {
+      ranked: report.ranked,
+      // Tournament matches count when the tournament ends (below), not one by one.
+      rate: report.tournamentMatchId === null,
     });
     resolveReport(report.id, "confirmed", now.toISOString(), matchId);
     if (report.tournamentMatchId !== null) {
       // Same transaction: the tournament match is played exactly when the match exists.
       setTournamentMatchResult(report.tournamentMatchId, matchId);
-      afterTournamentMatchResult(report.tournamentMatchId, now); // knockout: the winner moves on
+      const tournamentId = afterTournamentMatchResult(report.tournamentMatchId, now); // knockout: the winner moves on
+      // If that was the last match of a ranked tournament, all its matches are rated now, in the order they were played.
+      if (tournamentId !== undefined) {
+        rateMatches(matchesToRateIfFinished(tournamentId));
+      }
     }
     return { ok: true, matchId };
   });

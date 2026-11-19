@@ -3,6 +3,7 @@ import {
   getLeaderboard as queryLeaderboard,
   getPlayer,
   getPlayerMatches as queryPlayerMatches,
+  getRatingTimeline,
   type LeaderboardRow,
   type PlayerMatchRow,
 } from "../db.js";
@@ -55,7 +56,8 @@ export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
     return undefined;
   }
 
-  const matches = queryPlayerMatches(playerId); // newest first
+  const matches = queryPlayerMatches(playerId); // newest first; all matches, rated or not (W–L, form, streak)
+  const timeline = getRatingTimeline(playerId); // rated matches only (chart, peak)
   const wins = matches.filter((m) => m.won).length;
   const losses = matches.length - wins;
 
@@ -67,8 +69,8 @@ export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
     displayName: player.displayName,
     avatarUrl: player.avatarUrl,
     rating: player.rating,
-    // The starting rating counts too: a player who has only lost peaked at the start.
-    peakRating: Math.max(STARTING_RATING, ...matches.map((m) => m.ratingAfter)),
+    // Rated matches only. The starting rating counts too: a player who has only lost peaked at the start.
+    peakRating: Math.max(STARTING_RATING, ...timeline.map((point) => point.rating)),
     position: index === -1 ? null : index + 1,
     rankedPlayers: ranked.length,
     wins,
@@ -76,9 +78,7 @@ export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
     winRate: matches.length === 0 ? null : wins / matches.length,
     streak: currentStreak(matches),
     recentForm: matches.slice(0, RECENT_FORM_SIZE).map(toResult),
-    ratingHistory: matches
-      .map((m) => ({ matchId: m.matchId, playedAt: m.playedAt, rating: m.ratingAfter }))
-      .reverse(),
+    ratingHistory: timeline, // rated matches, in rating order (oldest first)
     opponents: opponentRecords(matches),
   };
 }

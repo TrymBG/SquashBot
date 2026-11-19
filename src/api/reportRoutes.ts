@@ -22,6 +22,7 @@ const reportBody = {
     opponentGames: { type: "integer", minimum: 0, maximum: 99 },
     playedAt: { type: "string", format: "date-time" },
     tournamentMatchId: { type: "integer", minimum: 1 }, // optional: a scheduled tournament match
+    ranked: { type: "boolean" }, // optional, default true; tournament matches follow the tournament
   },
   required: ["opponentId", "format", "myGames", "opponentGames"],
 } as const;
@@ -62,6 +63,7 @@ interface ReportBody {
   opponentGames: number;
   playedAt?: string;
   tournamentMatchId?: number;
+  ranked?: boolean;
 }
 
 export async function reportRoutes(app: FastifyInstance): Promise<void> {

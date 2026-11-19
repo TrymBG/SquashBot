@@ -59,8 +59,9 @@ export interface PlayerMatch {
   won: boolean
   myGames: number
   opponentGames: number
-  ratingBefore: number
-  ratingAfter: number
+  ratingBefore: number | null // null: not rated (unranked, or its tournament hasn't finished)
+  ratingAfter: number | null
+  ranked: boolean // false = unranked: never changes ratings
   tournament: { id: number; name: string } | null // set when the match was part of a tournament
 }
 
@@ -189,6 +190,7 @@ export interface Report {
   createdAt: string
   tournamentMatchId: number | null
   tournamentName: string | null // for the "🏆 Winter cup" label
+  ranked: boolean // false = unranked: the opponent sees it before confirming
 }
 
 export interface ReportLists {
@@ -203,6 +205,7 @@ export interface ReportInput {
   opponentGames: number
   playedAt?: string // UTC ISO timestamp; left out = now
   tournamentMatchId?: number // a scheduled tournament match
+  ranked?: boolean // default true; tournament matches follow the tournament
 }
 
 export function fetchOpponents(): Promise<Opponent[]> {
@@ -240,6 +243,7 @@ export interface TournamentSummary {
   matchFormat: string
   ranking: TournamentRanking | null // round robin only
   thirdPlace: boolean // knockout: a match for 3rd place
+  ranked: boolean // false = its matches never change ratings
   status: 'draft' | 'active'
   organizerId: string
   organizerName: string
@@ -312,6 +316,7 @@ export async function createTournament(input: {
   type: 'round_robin' | 'knockout'
   ranking?: TournamentRanking // round robin
   thirdPlace?: boolean // knockout
+  ranked?: boolean // default true
 }): Promise<TournamentDetails> {
   return (await postJson<{ tournament: TournamentDetails }>('/api/tournaments', input)).tournament
 }

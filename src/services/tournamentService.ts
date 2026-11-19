@@ -12,6 +12,7 @@ import {
   getPlayer,
   getTournament,
   getTournamentMatch,
+  getTournamentMatchIds,
   getTournamentMatches,
   getTournamentPlayers,
   getTournaments,
@@ -20,6 +21,7 @@ import {
   playerHasAccount,
   removeTournamentPlayer,
   resolveReport,
+  setRatingOrder,
   setTournamentActive,
   setTournamentMatchPlayers,
   setTournamentSeed,
@@ -83,6 +85,7 @@ export interface CreateInput {
   type?: TournamentType | undefined; // default round robin
   ranking?: TournamentRanking | undefined; // round robin, default "wins"
   thirdPlace?: boolean | undefined; // knockout, default false
+  ranked?: boolean | undefined; // default true. false = its matches never change ratings
 }
 
 export type CreateResult =
@@ -115,6 +118,7 @@ export function createTournament(user: PublicUser, input: CreateInput, now = new
       matchFormat: input.matchFormat,
       ranking,
       thirdPlace: type === "knockout" && (input.thirdPlace ?? false),
+      ranked: input.ranked ?? true,
       organizerId: user.playerId,
     },
     now.toISOString(),
@@ -189,11 +193,37 @@ export function startTournament(user: PublicUser, tournamentId: number, now = ne
 }
 
 // Called after a tournament match gets a result (reportService.confirmReport). Knockout: move the winner on.
-export function afterTournamentMatchResult(tournamentMatchId: number, now = new Date()): void {
+// Returns the tournament's id, so the caller can rate it if this finished it.
+export function afterTournamentMatchResult(tournamentMatchId: number, now = new Date()): number | undefined {
   const match = getTournamentMatch(tournamentMatchId);
   const tournament = match && getTournament(match.tournamentId);
   if (tournament?.type === "knockout") {
     syncKnockout(tournament.id, now);
+  }
+  return tournament?.id;
+}
+
+// Finished = started, and every match slot has a confirmed result.
+export function isFinished(tournament: TournamentRow): boolean {
+  return tournament.status === "active" && tournament.matchCount > 0 && tournament.playedCount === tournament.matchCount;
+}
+
+// The matches of a ranked tournament that are waiting to be rated (only when it's finished). Returns them oldest first,
+// for matchService.rateMatches; empty while it's running, for an unranked tournament, or when they're already rated.
+export function matchesToRateIfFinished(tournamentId: number): number[] {
+  const tournament = getTournament(tournamentId);
+  return tournament && tournament.ranked && isFinished(tournament) ? getTournamentMatchIds(tournamentId) : [];
+}
+
+// After an undo: a ranked tournament that's no longer finished counts again only when it's finished, so its matches
+// lose their place in the rating order. The replay after this then leaves them out.
+export function unrateUnfinishedTournaments(): void {
+  for (const tournament of getTournaments()) {
+    if (tournament.ranked && !isFinished(tournament)) {
+      for (const matchId of getTournamentMatchIds(tournament.id)) {
+        setRatingOrder(matchId, null);
+      }
+    }
   }
 }
 

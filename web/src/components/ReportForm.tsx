@@ -38,6 +38,7 @@ export default function ReportForm() {
   const [format, setFormat] = useState('bo5')
   const [resultIndex, setResultIndex] = useState(0)
   const [date, setDate] = useState(today)
+  const [unranked, setUnranked] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null) // name shown in the "sent" message
 
   if (opponents.isPending) return <p className="text-slate-400">Loading players…</p>
@@ -61,6 +62,7 @@ export default function ReportForm() {
         myGames: result.myGames,
         opponentGames: result.opponentGames,
         ...(playedAt ? { playedAt } : {}),
+        ranked: !unranked,
       },
       {
         onSuccess: () => {
@@ -68,6 +70,7 @@ export default function ReportForm() {
           setOpponentId('')
           setResultIndex(0)
           setDate(today)
+          setUnranked(false)
         },
       },
     )
@@ -129,6 +132,12 @@ export default function ReportForm() {
           onChange={(e) => setDate(e.target.value)}
           className={selectClass}
         />
+      </label>
+
+      <label className="flex items-center gap-2 sm:col-span-2">
+        <input type="checkbox" checked={unranked} onChange={(e) => setUnranked(e.target.checked)} />
+        <span className="text-sm">Unranked</span>
+        <span className="text-sm text-slate-400">(shows in your history, doesn't change ratings)</span>
       </label>
 
       <div className="sm:col-span-2">

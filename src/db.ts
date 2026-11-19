@@ -130,14 +130,26 @@ function initSchema(): void {
   addColumnIfMissing("players", "avatar_url", "TEXT");
   // A web report can belong to a scheduled tournament match.
   addColumnIfMissing("match_reports", "tournament_match_id", "INTEGER REFERENCES tournament_matches(id)");
+
+  // Recorded vs rated: a match is rated (moved ratings, has rating_history) exactly when rating_order is set.
+  // Unranked matches never get one; ranked tournament matches get one when the tournament ends. Replay uses this order.
+  addColumnIfMissing("matches", "ranked", "INTEGER NOT NULL DEFAULT 1");
+  if (addColumnIfMissing("matches", "rating_order", "INTEGER")) {
+    db.exec("UPDATE matches SET rating_order = id"); // everything before this column existed was rated, in id order
+  }
+  addColumnIfMissing("tournaments", "ranked", "INTEGER NOT NULL DEFAULT 1");
+  addColumnIfMissing("match_reports", "ranked", "INTEGER NOT NULL DEFAULT 1");
 }
 
 // Migration for databases created before a column existed. CREATE TABLE IF NOT EXISTS never changes an existing table.
-function addColumnIfMissing(table: string, column: string, type: string): void {
+// Returns true if it added the column (so the caller can fill it for existing rows).
+function addColumnIfMissing(table: string, column: string, type: string): boolean {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!columns.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  if (columns.some((c) => c.name === column)) {
+    return false;
   }
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+  return true;
 }
 
 // Runs fn inside a transaction: either everything in it is saved, or nothing is.
@@ -182,7 +194,9 @@ export function getPlayer(id: string): PlayerRow | undefined {
       display_name,
       avatar_url,
       rating,
-      (SELECT COUNT(*) FROM matches WHERE winner_id = players.id OR loser_id = players.id) AS matches_played
+      -- Rated matches only: the K-factor's "first 10 matches" must count the same way live and in a replay.
+      (SELECT COUNT(*) FROM matches
+        WHERE (winner_id = players.id OR loser_id = players.id) AND rating_order IS NOT NULL) AS matches_played
     FROM players
     WHERE id = ?
   `).get(id) as { display_name: string; avatar_url: string | null; rating: number; matches_played: number } | undefined;
@@ -214,15 +228,47 @@ export interface NewMatch {
   format: string;
   reportedBy: string;
   playedAt: string;
+  ranked: boolean; // false = unranked: recorded, never rated
+  ratingOrder: number | null; // set = rated now (its place in the rating order); null = not rated (yet)
 }
 
 // Saves a match and returns its id.
 export function insertMatch(match: NewMatch): number {
   const result = db.prepare(`
-    INSERT INTO matches (winner_id, loser_id, winner_games, loser_games, format, reported_by, played_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(match.winnerId, match.loserId, match.winnerGames, match.loserGames, match.format, match.reportedBy, match.playedAt);
+    INSERT INTO matches (winner_id, loser_id, winner_games, loser_games, format, reported_by, played_at, ranked, rating_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    match.winnerId,
+    match.loserId,
+    match.winnerGames,
+    match.loserGames,
+    match.format,
+    match.reportedBy,
+    match.playedAt,
+    match.ranked ? 1 : 0,
+    match.ratingOrder,
+  );
   return Number(result.lastInsertRowid);
+}
+
+// The next free place in the rating order (rated matches are rated, and replayed, in this order).
+export function nextRatingOrder(): number {
+  const row = db.prepare("SELECT COALESCE(MAX(rating_order), 0) + 1 AS next FROM matches").get() as { next: number };
+  return row.next;
+}
+
+export function setRatingOrder(matchId: number, ratingOrder: number | null): void {
+  db.prepare("UPDATE matches SET rating_order = ? WHERE id = ?").run(ratingOrder, matchId);
+}
+
+// The matches of one tournament (played and confirmed), oldest first.
+export function getTournamentMatchIds(tournamentId: number): number[] {
+  const rows = db.prepare(`
+    SELECT tm.match_id FROM tournament_matches tm
+    WHERE tm.tournament_id = ? AND tm.match_id IS NOT NULL
+    ORDER BY tm.match_id
+  `).all(tournamentId) as { match_id: number }[];
+  return rows.map((row) => row.match_id);
 }
 
 export interface MatchRow {
@@ -289,12 +335,14 @@ export interface ReplayMatchRow {
   loserGames: number;
 }
 
-// Every match in the order it was logged (oldest first), with just what a replay needs.
+// Every rated match in rating order, with just what a replay needs. Unranked matches and ranked tournament
+// matches that aren't rated yet (rating_order NULL) are left out.
 export function getAllMatchesForReplay(): ReplayMatchRow[] {
   const rows = db.prepare(`
     SELECT id, winner_id, loser_id, format, winner_games, loser_games
     FROM matches
-    ORDER BY id ASC
+    WHERE rating_order IS NOT NULL
+    ORDER BY rating_order ASC
   `).all() as {
     id: number;
     winner_id: string;
@@ -312,6 +360,27 @@ export function getAllMatchesForReplay(): ReplayMatchRow[] {
     winnerGames: row.winner_games,
     loserGames: row.loser_games,
   }));
+}
+
+// One match with what rating it needs, or undefined.
+export function getMatchForRating(id: number): (ReplayMatchRow & { ranked: boolean; ratingOrder: number | null }) | undefined {
+  const row = db.prepare(`
+    SELECT id, winner_id, loser_id, format, winner_games, loser_games, ranked, rating_order FROM matches WHERE id = ?
+  `).get(id) as
+    | { id: number; winner_id: string; loser_id: string; format: string; winner_games: number; loser_games: number; ranked: number; rating_order: number | null }
+    | undefined;
+  return (
+    row && {
+      id: row.id,
+      winnerId: row.winner_id,
+      loserId: row.loser_id,
+      format: row.format,
+      winnerGames: row.winner_games,
+      loserGames: row.loser_games,
+      ranked: row.ranked === 1,
+      ratingOrder: row.rating_order,
+    }
+  );
 }
 
 // Deletes a match. Its rating_history rows are removed automatically (ON DELETE CASCADE).
@@ -341,10 +410,11 @@ export function getLeaderboard(limit = -1): LeaderboardRow[] {
       p.display_name,
       p.avatar_url,
       p.rating,
-      (SELECT COUNT(*) FROM matches WHERE winner_id = p.id) AS wins,
-      (SELECT COUNT(*) FROM matches WHERE loser_id = p.id) AS losses
+      -- Rated matches only: the leaderboard ranks by rating, so its W–L counts the matches that made the rating.
+      (SELECT COUNT(*) FROM matches WHERE winner_id = p.id AND rating_order IS NOT NULL) AS wins,
+      (SELECT COUNT(*) FROM matches WHERE loser_id = p.id AND rating_order IS NOT NULL) AS losses
     FROM players p
-    WHERE EXISTS (SELECT 1 FROM matches WHERE winner_id = p.id OR loser_id = p.id)
+    WHERE EXISTS (SELECT 1 FROM matches WHERE (winner_id = p.id OR loser_id = p.id) AND rating_order IS NOT NULL)
     ORDER BY p.rating DESC
     LIMIT ?
   `).all(limit) as {
@@ -377,8 +447,9 @@ export interface PlayerMatchRow {
   won: boolean;
   myGames: number;
   opponentGames: number;
-  ratingBefore: number;
-  ratingAfter: number;
+  ratingBefore: number | null; // null: not rated (unranked, or a tournament that hasn't finished)
+  ratingAfter: number | null;
+  ranked: boolean; // false = unranked: never changes ratings
   tournament: { id: number; name: string } | null; // set when the match was part of a tournament
 }
 
@@ -390,24 +461,25 @@ export interface PlayerMatchFilter {
   format?: string | undefined; // only matches in this format (bo1, bo3, bo5, ft6)
 }
 
-// A player's matches, newest first. Joining rating_history on the player's id both picks out
-// their matches and gives their rating change in each one.
+// A player's matches, newest first, with their rating change in each (none for matches that aren't rated).
 export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {}): PlayerMatchRow[] {
   const rows = db.prepare(`
     SELECT
       m.id, m.played_at, m.format,
       o.id AS opponent_id, o.display_name AS opponent_name, o.avatar_url AS opponent_avatar_url,
-      m.winner_id = h.player_id AS won,
-      CASE WHEN m.winner_id = h.player_id THEN m.winner_games ELSE m.loser_games END AS my_games,
-      CASE WHEN m.winner_id = h.player_id THEN m.loser_games ELSE m.winner_games END AS opponent_games,
-      h.rating_before, h.rating_after,
+      m.winner_id = :playerId AS won,
+      CASE WHEN m.winner_id = :playerId THEN m.winner_games ELSE m.loser_games END AS my_games,
+      CASE WHEN m.winner_id = :playerId THEN m.loser_games ELSE m.winner_games END AS opponent_games,
+      h.rating_before, h.rating_after, m.ranked,
       t.id AS tournament_id, t.name AS tournament_name
     FROM matches m
-    JOIN rating_history h ON h.match_id = m.id AND h.player_id = :playerId
-    JOIN players o ON o.id = CASE WHEN m.winner_id = h.player_id THEN m.loser_id ELSE m.winner_id END
+    -- LEFT JOIN: unrated matches have no rating_history rows but still belong in the history.
+    LEFT JOIN rating_history h ON h.match_id = m.id AND h.player_id = :playerId
+    JOIN players o ON o.id = CASE WHEN m.winner_id = :playerId THEN m.loser_id ELSE m.winner_id END
     LEFT JOIN tournament_matches tm ON tm.match_id = m.id
     LEFT JOIN tournaments t ON t.id = tm.tournament_id
-    WHERE (:before IS NULL OR m.id < :before)
+    WHERE (m.winner_id = :playerId OR m.loser_id = :playerId)
+      AND (:before IS NULL OR m.id < :before)
       AND (:opponentId IS NULL OR o.id = :opponentId)
       AND (:format IS NULL OR m.format = :format)
     ORDER BY m.id DESC
@@ -428,8 +500,9 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
     won: number;
     my_games: number;
     opponent_games: number;
-    rating_before: number;
-    rating_after: number;
+    rating_before: number | null;
+    rating_after: number | null;
+    ranked: number;
     tournament_id: number | null;
     tournament_name: string | null;
   }[];
@@ -446,6 +519,7 @@ export function getPlayerMatches(playerId: string, filter: PlayerMatchFilter = {
     opponentGames: row.opponent_games,
     ratingBefore: row.rating_before,
     ratingAfter: row.rating_after,
+    ranked: row.ranked === 1,
     tournament: row.tournament_id === null ? null : { id: row.tournament_id, name: row.tournament_name! },
   }));
 }
@@ -581,6 +655,7 @@ export interface NewReport {
   opponentGames: number;
   playedAt: string;
   tournamentMatchId?: number | null | undefined; // set when the report is for a scheduled tournament match
+  ranked?: boolean | undefined; // default true. false = unranked: the match never changes ratings
 }
 
 // A report with both players' names, as the website shows it.
@@ -592,14 +667,15 @@ export interface ReportRow extends NewReport {
   createdAt: string;
   tournamentMatchId: number | null; // always known when read back (not optional like in NewReport)
   tournamentName: string | null; // for the "🏆 Winter cup" label
+  ranked: boolean; // false = unranked: shown to the opponent before they confirm
 }
 
 // Saves a new pending report and returns its id.
 export function insertReport(report: NewReport, createdAt: string): number {
   const result = db.prepare(`
     INSERT INTO match_reports
-      (reporter_id, opponent_id, format, reporter_games, opponent_games, played_at, status, created_at, tournament_match_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      (reporter_id, opponent_id, format, reporter_games, opponent_games, played_at, status, created_at, tournament_match_id, ranked)
+    VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
   `).run(
     report.reporterId,
     report.opponentId,
@@ -609,6 +685,7 @@ export function insertReport(report: NewReport, createdAt: string): number {
     report.playedAt,
     createdAt,
     report.tournamentMatchId ?? null,
+    report.ranked === false ? 0 : 1,
   );
   return Number(result.lastInsertRowid);
 }
@@ -616,7 +693,7 @@ export function insertReport(report: NewReport, createdAt: string): number {
 const REPORT_SELECT = `
   SELECT
     r.id, r.reporter_id, rp.display_name AS reporter_name, r.opponent_id, op.display_name AS opponent_name,
-    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at, r.tournament_match_id,
+    r.format, r.reporter_games, r.opponent_games, r.played_at, r.status, r.created_at, r.tournament_match_id, r.ranked,
     t.name AS tournament_name
   FROM match_reports r
   JOIN players rp ON rp.id = r.reporter_id
@@ -639,6 +716,7 @@ interface ReportDbRow {
   created_at: string;
   tournament_match_id: number | null;
   tournament_name: string | null;
+  ranked: number;
 }
 
 function toReportRow(row: ReportDbRow): ReportRow {
@@ -656,6 +734,7 @@ function toReportRow(row: ReportDbRow): ReportRow {
     createdAt: row.created_at,
     tournamentMatchId: row.tournament_match_id,
     tournamentName: row.tournament_name,
+    ranked: row.ranked === 1,
   };
 }
 
@@ -730,6 +809,7 @@ export interface NewTournament {
   matchFormat: string;
   ranking: TournamentRanking | null;
   thirdPlace: boolean; // knockout: play a match for 3rd place
+  ranked: boolean; // false = unranked tournament: its matches never change ratings
   organizerId: string;
 }
 
@@ -746,14 +826,15 @@ export interface TournamentRow extends NewTournament {
 
 export function insertTournament(tournament: NewTournament, createdAt: string): number {
   const result = db.prepare(`
-    INSERT INTO tournaments (name, type, match_format, ranking, third_place, status, organizer_id, created_at)
-    VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)
+    INSERT INTO tournaments (name, type, match_format, ranking, third_place, ranked, status, organizer_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)
   `).run(
     tournament.name,
     tournament.type,
     tournament.matchFormat,
     tournament.ranking,
     tournament.thirdPlace ? 1 : 0,
+    tournament.ranked ? 1 : 0,
     tournament.organizerId,
     createdAt,
   );
@@ -762,7 +843,7 @@ export function insertTournament(tournament: NewTournament, createdAt: string): 
 
 const TOURNAMENT_SELECT = `
   SELECT
-    t.id, t.name, t.type, t.match_format, t.ranking, t.third_place, t.status, t.organizer_id, o.display_name AS organizer_name,
+    t.id, t.name, t.type, t.match_format, t.ranking, t.third_place, t.ranked, t.status, t.organizer_id, o.display_name AS organizer_name,
     t.created_at, t.started_at,
     (SELECT COUNT(*) FROM tournament_players tp WHERE tp.tournament_id = t.id) AS player_count,
     (SELECT COUNT(*) FROM tournament_matches tm WHERE tm.tournament_id = t.id) AS match_count,
@@ -778,6 +859,7 @@ interface TournamentDbRow {
   match_format: string;
   ranking: TournamentRanking | null;
   third_place: number;
+  ranked: number;
   status: "draft" | "active";
   organizer_id: string;
   organizer_name: string;
@@ -796,6 +878,7 @@ function toTournamentRow(row: TournamentDbRow): TournamentRow {
     matchFormat: row.match_format,
     ranking: row.ranking,
     thirdPlace: row.third_place === 1,
+    ranked: row.ranked === 1,
     status: row.status,
     organizerId: row.organizer_id,
     organizerName: row.organizer_name,
@@ -970,4 +1053,17 @@ export function getTournamentMatches(tournamentId: number): TournamentMatchRow[]
 
 export function setTournamentMatchResult(tournamentMatchId: number, matchId: number): void {
   db.prepare("UPDATE tournament_matches SET match_id = ? WHERE id = ?").run(matchId, tournamentMatchId);
+}
+
+// A player's rating after each rated match, in rating order (for the profile chart). Tournament matches are rated when
+// the tournament ends, so rating order can differ from match order; the chart must follow the rating order.
+export function getRatingTimeline(playerId: string): { matchId: number; playedAt: string; rating: number }[] {
+  const rows = db.prepare(`
+    SELECT h.match_id, m.played_at, h.rating_after
+    FROM rating_history h
+    JOIN matches m ON m.id = h.match_id
+    WHERE h.player_id = ?
+    ORDER BY m.rating_order
+  `).all(playerId) as { match_id: number; played_at: string; rating_after: number }[];
+  return rows.map((row) => ({ matchId: row.match_id, playedAt: row.played_at, rating: row.rating_after }));
 }

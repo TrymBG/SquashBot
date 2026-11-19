@@ -54,13 +54,14 @@ function CreateTournamentForm() {
   const [matchFormat, setMatchFormat] = useState('bo3')
   const [ranking, setRanking] = useState<TournamentRanking>('wins')
   const [thirdPlace, setThirdPlace] = useState(false)
+  const [unranked, setUnranked] = useState(false)
   const isRally = findFormat(matchFormat)?.rallies !== null
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     // Each type only sends its own option: ranking for round robin, the 3rd-place match for knockout.
     const options = type === 'round_robin' ? { ranking } : { thirdPlace }
-    create.mutate({ name, matchFormat, type, ...options }, { onSuccess: (t) => navigate(`/tournaments/${t.id}`) })
+    create.mutate({ name, matchFormat, type, ranked: !unranked, ...options }, { onSuccess: (t) => navigate(`/tournaments/${t.id}`) })
   }
 
   return (
@@ -107,6 +108,11 @@ function CreateTournamentForm() {
           <span className="text-sm">Play a 3rd-place match</span>
         </label>
       )}
+      <label className="flex items-center gap-2 sm:col-span-2">
+        <input type="checkbox" checked={unranked} onChange={(e) => setUnranked(e.target.checked)} />
+        <span className="text-sm">Unranked tournament</span>
+        <span className="text-sm text-slate-400">(results don't change anyone's rating)</span>
+      </label>
       <div className="sm:col-span-2">
         <p className="mb-2 text-sm text-slate-400">
           {type === 'round_robin'

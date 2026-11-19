@@ -103,7 +103,9 @@ Each milestone planned in plan mode.
   - [x] Knockout bracket view (columns per round, sideways scroll on phones)
 - [ ] Later: groups → knockout (round-robin groups, top players into a bracket), double round robin
 - [x] Dev "Log in as…" (DEV_LOGIN=1, never in production) + seed players with web accounts, for testing tournaments
-- [ ] Tournament matches count for Elo only when the tournament ends (decided 2026-11-20); then: organizer can end a tournament early
+- [x] Tournament matches count for Elo only when the tournament ends (decided 2026-11-20)
+- [x] Unranked matches and tournaments: in history, never change ratings; leaderboard W–L counts rated matches only
+- [ ] Organizer can end a tournament early (until then, an unfinished ranked tournament's matches never count)
 - [ ] D1 Design pass (user has input, discuss first)
 - [ ] Invite friends (after W5b hosting)
 
