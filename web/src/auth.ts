@@ -2,7 +2,7 @@
 // query cache, a bit like a small service class. No React Context needed: every component that calls
 // useCurrentUser() reads the same cached answer under the key ['me'], and the mutations below update that entry.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchMe, login, logout, signup, type User } from './api.ts'
+import { devLoginAs, fetchDevUsers, fetchMe, login, logout, signup, type User } from './api.ts'
 
 const ME = ['me']
 
@@ -35,5 +35,22 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.setQueryData(ME, null),
+  })
+}
+
+// Dev only: the test accounts (null when dev login is off), and switching to one. Switching refreshes everything,
+// since every "mine" view (results badge, highlighted matches, …) depends on who is logged in.
+export function useDevUsers() {
+  return useQuery({ queryKey: ['devUsers'], queryFn: fetchDevUsers, staleTime: Infinity })
+}
+
+export function useDevLoginAs() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: devLoginAs,
+    onSuccess: async (user) => {
+      queryClient.setQueryData(ME, user)
+      await queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+    },
   })
 }

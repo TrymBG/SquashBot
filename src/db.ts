@@ -492,7 +492,7 @@ export function insertUser(id: string, email: string, passwordHash: string, play
 
 // Selects a user with their player's display name. `where` goes into the SQL text, so its type only allows these
 // two fixed column names: user input can only ever be the `?` value.
-function queryUser(where: "u.email" | "u.id", value: string): UserRow | undefined {
+function queryUser(where: "u.email" | "u.id" | "u.player_id", value: string): UserRow | undefined {
   const row = db.prepare(`
     SELECT u.id, u.email, u.password_hash, u.player_id, p.display_name
     FROM users u
@@ -520,6 +520,27 @@ export function getUserByEmail(email: string): UserRow | undefined {
 
 export function getUserById(id: string): UserRow | undefined {
   return queryUser("u.id", id);
+}
+
+export function getUserByPlayerId(playerId: string): UserRow | undefined {
+  return queryUser("u.player_id", playerId);
+}
+
+// Every web account, by name (dev "Log in as…" list).
+export function getAllUsers(): UserRow[] {
+  const rows = db.prepare(`
+    SELECT u.id, u.email, u.password_hash, u.player_id, p.display_name
+    FROM users u
+    JOIN players p ON p.id = u.player_id
+    ORDER BY p.display_name COLLATE NOCASE
+  `).all() as { id: string; email: string; password_hash: string; player_id: string; display_name: string }[];
+  return rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    passwordHash: row.password_hash,
+    playerId: row.player_id,
+    displayName: row.display_name,
+  }));
 }
 
 export interface SessionRow {

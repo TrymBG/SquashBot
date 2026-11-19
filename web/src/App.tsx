@@ -1,6 +1,7 @@
 // The page frame (header) and the route table: which URL shows which page.
 import { Link, Route, Routes, useNavigate } from 'react-router'
 import { useCurrentUser, useLogout } from './auth.ts'
+import DevLoginSwitcher from './components/DevLoginSwitcher.tsx'
 import LeaderboardPage from './pages/LeaderboardPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import PlayerPage from './pages/PlayerPage.tsx'
@@ -23,7 +24,10 @@ export default function App() {
               Tournaments
             </Link>
           </div>
-          <AccountMenu />
+          <div className="flex items-center gap-4">
+            <DevLoginSwitcher />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 

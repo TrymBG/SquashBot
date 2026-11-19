@@ -327,3 +327,19 @@ export function removeTournamentPlayer(id: number, playerId: string): Promise<vo
 export function startTournament(id: number): Promise<void> {
   return postJson(`/api/tournaments/${id}/start`)
 }
+
+// ---- Dev only: "Log in as…" (the routes only exist when the API runs with DEV_LOGIN=1, never in production) ----
+
+// The test accounts, or null when dev login is off (the route doesn't exist: 404).
+export async function fetchDevUsers(): Promise<{ playerId: string; displayName: string }[] | null> {
+  try {
+    return await getJson('/api/dev/users')
+  } catch (error) {
+    if (isNotFound(error)) return null
+    throw error
+  }
+}
+
+export async function devLoginAs(playerId: string): Promise<User> {
+  return (await postJson<{ user: User }>('/api/dev/login-as', { playerId })).user
+}

@@ -4,9 +4,11 @@ import { randomUUID } from "node:crypto";
 import {
   deleteExpiredSessions,
   deleteSession,
+  getAllUsers,
   getSession,
   getUserByEmail,
   getUserById,
+  getUserByPlayerId,
   insertSession,
   insertUser,
   transaction,
@@ -83,6 +85,16 @@ export async function login(email: string, password: string, now = new Date()): 
   }
   deleteExpiredSessions(now.toISOString()); // a cheap moment to clean up old sessions
   return { ok: true, user: toPublicUser(user), sessionToken: createSession(user.id, now) };
+}
+
+// Dev only (api/devRoutes.ts, never registered in production): every account, and logging in as one without a password.
+export function listAccounts(): PublicUser[] {
+  return getAllUsers().map(toPublicUser);
+}
+
+export function devLoginAs(playerId: string, now = new Date()): { user: PublicUser; sessionToken: string } | undefined {
+  const user = getUserByPlayerId(playerId);
+  return user && { user: toPublicUser(user), sessionToken: createSession(user.id, now) };
 }
 
 export function logout(sessionToken: string): void {
