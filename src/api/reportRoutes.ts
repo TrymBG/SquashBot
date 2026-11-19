@@ -21,6 +21,7 @@ const reportBody = {
     myGames: { type: "integer", minimum: 0, maximum: 99 },
     opponentGames: { type: "integer", minimum: 0, maximum: 99 },
     playedAt: { type: "string", format: "date-time" },
+    tournamentMatchId: { type: "integer", minimum: 1 }, // optional: a scheduled tournament match
   },
   required: ["opponentId", "format", "myGames", "opponentGames"],
 } as const;
@@ -36,6 +37,10 @@ const reportErrors = {
   "invalid-score": { status: 400, error: "That score isn't possible for this format" },
   "invalid-date": { status: 400, error: "The date must be within the last 30 days and not in the future" },
   "opponent-not-found": { status: 404, error: "Opponent not found" },
+  "tournament-match-not-found": { status: 404, error: "Tournament match not found" },
+  "not-your-tournament-match": { status: 400, error: "That tournament match is between other players" },
+  "wrong-format": { status: 400, error: "This tournament uses a different format" },
+  "tournament-match-taken": { status: 409, error: "This tournament match is already played or waiting for confirmation" },
 } as const;
 
 const changeErrors = {
@@ -55,6 +60,7 @@ interface ReportBody {
   myGames: number;
   opponentGames: number;
   playedAt?: string;
+  tournamentMatchId?: number;
 }
 
 export async function reportRoutes(app: FastifyInstance): Promise<void> {

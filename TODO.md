@@ -91,7 +91,7 @@ Each milestone planned in plan mode.
     - **Total points**: sum of points scored (loser keeps theirs: 8–7 gives 8 and 7), then head-to-head, then match wins
   - [x] PR 1: fixed-rally formats r11/r15/r21 (score in points, sum = N), Elo multiplier 0.5, usable everywhere on the website;
     one format list per side (`src/formats.ts`, `web/src/formats.ts`); `validation.test.ts` covers every format
-  - [ ] PR 2: round-robin backend: tables, `roundRobinSchedule`, `roundRobinStandings` (wins or points), service, routes, tournament reports
+  - [x] PR 2: round-robin backend: tables, `roundRobinSchedule`, `roundRobinStandings` (wins or points), service, routes, tournament reports
   - [ ] T1b: knockout bracket (separate plan)
   - Decided: two separate formats, picked when creating; 4–16 players; any logged-in user can create one (creator = organizer);
     tournament matches count for Elo

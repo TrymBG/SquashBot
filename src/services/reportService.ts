@@ -9,9 +9,12 @@ import {
   getPlayer,
   getPlayersWithAccounts,
   getReport,
+  getTournament,
+  getTournamentMatch,
   insertReport,
   playerHasAccount,
   resolveReport,
+  setTournamentMatchResult,
   transaction,
   type OpponentRow,
   type ReportRow,
@@ -32,11 +35,23 @@ export interface ReportInput {
   myGames: number;
   opponentGames: number;
   playedAt?: string | undefined; // UTC ISO timestamp, default now
+  tournamentMatchId?: number | undefined; // set when this is a scheduled tournament match
 }
 
 export type ReportResult =
   | { ok: true; report: ReportRow }
-  | { ok: false; reason: "self" | "opponent-not-found" | "invalid-score" | "invalid-date" };
+  | {
+      ok: false;
+      reason:
+        | "self"
+        | "opponent-not-found"
+        | "invalid-score"
+        | "invalid-date"
+        | "tournament-match-not-found"
+        | "not-your-tournament-match" // you or the opponent isn't one of the two scheduled players
+        | "wrong-format" // not the tournament's format
+        | "tournament-match-taken"; // already played, or a report for it is waiting for confirmation
+    };
 
 // Why changing a report failed. not-found also covers "exists, but you're not part of it", so outsiders can't
 // learn which report ids exist.
@@ -67,6 +82,10 @@ export function reportResult(user: PublicUser, input: ReportInput, now = new Dat
   if (Number.isNaN(playedAt.getTime()) || tooNew || tooOld) {
     return { ok: false, reason: "invalid-date" };
   }
+  if (input.tournamentMatchId !== undefined) {
+    const problem = checkTournamentMatch(user, input);
+    if (problem) return { ok: false, reason: problem };
+  }
 
   const id = insertReport(
     {
@@ -76,10 +95,26 @@ export function reportResult(user: PublicUser, input: ReportInput, now = new Dat
       reporterGames: input.myGames,
       opponentGames: input.opponentGames,
       playedAt: playedAt.toISOString(),
+      tournamentMatchId: input.tournamentMatchId ?? null,
     },
     now.toISOString(),
   );
   return { ok: true, report: getReport(id)! };
+}
+
+// Checks a report against its scheduled tournament match. Returns the problem, or null if it fits.
+function checkTournamentMatch(
+  user: PublicUser,
+  input: ReportInput,
+): "tournament-match-not-found" | "not-your-tournament-match" | "wrong-format" | "tournament-match-taken" | null {
+  const match = input.tournamentMatchId === undefined ? undefined : getTournamentMatch(input.tournamentMatchId);
+  const tournament = match && getTournament(match.tournamentId);
+  if (!match || !tournament) return "tournament-match-not-found";
+  const scheduled = [match.playerA, match.playerB].sort().join();
+  if (scheduled !== [user.playerId, input.opponentId].sort().join()) return "not-your-tournament-match";
+  if (input.format !== tournament.matchFormat) return "wrong-format";
+  if (match.matchId !== null || match.pendingReportId !== null) return "tournament-match-taken";
+  return null;
 }
 
 // My pending reports: `incoming` are waiting for me to confirm, `outgoing` are waiting for my opponents.
@@ -114,6 +149,10 @@ export function confirmReport(user: PublicUser, reportId: number, now = new Date
       playedAt: report.playedAt,
     });
     resolveReport(report.id, "confirmed", now.toISOString(), matchId);
+    if (report.tournamentMatchId !== null) {
+      // Same transaction: the tournament match is played exactly when the match exists.
+      setTournamentMatchResult(report.tournamentMatchId, matchId);
+    }
     return { ok: true, matchId };
   });
 }

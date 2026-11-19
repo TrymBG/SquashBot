@@ -9,6 +9,7 @@ import { cookieSecure, inviteCode, webDistPath } from "../config.js";
 import { authRoutes, type AuthOptions } from "./authRoutes.js";
 import { reportRoutes } from "./reportRoutes.js";
 import { apiRoutes } from "./routes.js";
+import { tournamentPublicRoutes, tournamentRoutes } from "./tournamentRoutes.js";
 
 export interface ServerOptions {
   inviteCode?: string | null; // null = sign-up closed
@@ -38,6 +39,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   app.register(apiRoutes);
   app.register(authRoutes, auth);
   app.register(reportRoutes);
+  app.register(tournamentPublicRoutes); // viewing: no login
+  app.register(tournamentRoutes); // creating and changing: behind requireLogin
   if (websitePath) {
     serveWebsite(app, resolve(websitePath));
   }
