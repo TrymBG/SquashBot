@@ -61,6 +61,7 @@ export interface PlayerMatch {
   opponentGames: number
   ratingBefore: number
   ratingAfter: number
+  tournament: { id: number; name: string } | null // set when the match was part of a tournament
 }
 
 export interface MatchPage {
@@ -112,6 +113,10 @@ function postJson<T>(path: string, body?: object): Promise<T> {
     method: 'POST',
     ...(body ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {}),
   })
+}
+
+function deleteJson<T>(path: string): Promise<T> {
+  return request(path, { method: 'DELETE' })
 }
 
 export function fetchLeaderboard(): Promise<LeaderboardRow[]> {
@@ -182,6 +187,8 @@ export interface Report {
   playedAt: string
   status: 'pending' | 'confirmed' | 'rejected' | 'cancelled'
   createdAt: string
+  tournamentMatchId: number | null
+  tournamentName: string | null // for the "🏆 Winter cup" label
 }
 
 export interface ReportLists {
@@ -195,6 +202,7 @@ export interface ReportInput {
   myGames: number
   opponentGames: number
   playedAt?: string // UTC ISO timestamp; left out = now
+  tournamentMatchId?: number // a scheduled tournament match
 }
 
 export function fetchOpponents(): Promise<Opponent[]> {
@@ -219,4 +227,89 @@ export function rejectReport(id: number): Promise<void> {
 
 export function cancelReport(id: number): Promise<void> {
   return postJson(`/api/reports/${id}/cancel`)
+}
+
+// ---- Tournaments (copies of the backend's tournamentService types) ----
+
+export type TournamentRanking = 'wins' | 'points'
+
+export interface TournamentSummary {
+  id: number
+  name: string
+  type: 'round_robin' | 'knockout'
+  matchFormat: string
+  ranking: TournamentRanking | null
+  status: 'draft' | 'active'
+  organizerId: string
+  organizerName: string
+  createdAt: string
+  startedAt: string | null
+  playerCount: number
+  matchCount: number
+  playedCount: number
+}
+
+export interface TournamentPlayer {
+  playerId: string
+  displayName: string
+  avatarUrl: string | null
+  rating: number
+}
+
+export interface TournamentMatch {
+  id: number
+  round: number
+  playerA: { id: string; displayName: string }
+  playerB: { id: string; displayName: string }
+  state: 'unplayed' | 'pending' | 'played'
+  scoreA: number | null // from player A's side, once played
+  scoreB: number | null
+  pendingReport: { id: number; reporterId: string; reporterScore: number; opponentScore: number } | null
+}
+
+export interface StandingRow {
+  playerId: string
+  displayName: string
+  position: number // equal players share it
+  played: number
+  wins: number
+  losses: number
+  scoreFor: number // games, or points for rally formats
+  scoreAgainst: number
+}
+
+export interface TournamentDetails extends TournamentSummary {
+  organizer: { id: string; displayName: string }
+  finished: boolean
+  players: TournamentPlayer[]
+  matches: TournamentMatch[] // by round
+  standings: StandingRow[]
+}
+
+export function fetchTournaments(): Promise<TournamentSummary[]> {
+  return getJson('/api/tournaments')
+}
+
+export function fetchTournament(id: number): Promise<TournamentDetails> {
+  return getJson(`/api/tournaments/${id}`)
+}
+
+export async function createTournament(input: {
+  name: string
+  matchFormat: string
+  ranking: TournamentRanking
+}): Promise<TournamentDetails> {
+  return (await postJson<{ tournament: TournamentDetails }>('/api/tournaments', input)).tournament
+}
+
+export function addTournamentPlayer(id: number, playerId: string): Promise<void> {
+  return postJson(`/api/tournaments/${id}/players`, { playerId })
+}
+
+export function removeTournamentPlayer(id: number, playerId: string): Promise<void> {
+  return deleteJson(`/api/tournaments/${id}/players/${encodeURIComponent(playerId)}`)
+}
+
+export function startTournament(id: number): Promise<void> {
+  return postJson(`/api/tournaments/${id}/start`)
 }

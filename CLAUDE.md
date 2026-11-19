@@ -91,10 +91,12 @@ web/
     auth.ts             # useCurrentUser (query ['me']), useLogin/useSignup/useLogout (mutations that update ['me'])
     format.ts           # display formatting: rounding, "+16", dates in Norwegian time
     formats.ts          # FORMATS: the website's copy of the format list, with labels ("15 rallies", "R15"); keep in sync with src/formats.ts
-    reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations
+    reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations (also refresh tournaments)
+    tournaments.ts      # hooks: useTournaments, useTournament(id), create/add/remove/start mutations, invalidateTournaments()
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
-    pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login)
-    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList
+    pages/              # LeaderboardPage, PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
+                        # TournamentsPage (/tournaments: list + create form), TournamentPage (/tournaments/:id: draft view / standings + schedule)
+    components/         # Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match)
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -148,14 +150,16 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 190 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 192 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
 - Frontend works: leaderboard page and player profile (stats, form, rating chart, paged match history with opponent/format filters).
 - Round-robin tournaments backend works (T1a): create, players, start (circle-method schedule), matches via report → confirm (count for Elo),
   standings by wins or points with head-to-head tiebreak. Tournament rules: 3–16 players with web accounts; only the organizer changes it; only while draft.
-- Next feature work: TODO.md section 5: T2 (tournament pages) or T1b (knockout backend), plan in plan mode.
+- Round-robin tournament pages work (T2): create, players, start, standings + schedule, report/confirm on the match, 🏆 labels.
+  API extras for the pages: tournament matches expose `pendingReport`, reports carry `tournamentName`, profile matches carry `tournament`.
+- Next feature work: TODO.md section 5: T1b (knockout backend + bracket view), then D1 design pass. Plan in plan mode.
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.

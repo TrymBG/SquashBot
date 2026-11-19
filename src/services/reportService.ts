@@ -113,7 +113,7 @@ function checkTournamentMatch(
   const scheduled = [match.playerA, match.playerB].sort().join();
   if (scheduled !== [user.playerId, input.opponentId].sort().join()) return "not-your-tournament-match";
   if (input.format !== tournament.matchFormat) return "wrong-format";
-  if (match.matchId !== null || match.pendingReportId !== null) return "tournament-match-taken";
+  if (match.matchId !== null || match.pendingReport !== null) return "tournament-match-taken";
   return null;
 }
 

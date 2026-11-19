@@ -1,5 +1,6 @@
 // Display formatting. Ratings are stored unrounded and only rounded here; times are stored in UTC
 // and shown in Norwegian time.
+import type { TournamentSummary } from './api.ts'
 import { findFormat } from './formats.ts'
 
 const dateFormat = new Intl.DateTimeFormat('nb-NO', {
@@ -34,4 +35,17 @@ export function formatPercent(fraction: number): string {
 // "bo5" → "Bo5", "r15" → "R15". An unknown format is shown as it is.
 export function formatMatchFormat(format: string): string {
   return findFormat(format)?.short ?? format
+}
+
+// "Round robin · 15 rallies · ranked by points"
+export function describeTournament(t: Pick<TournamentSummary, 'matchFormat' | 'ranking'>): string {
+  const format = findFormat(t.matchFormat)?.label ?? t.matchFormat
+  return `Round robin · ${format} · ranked by ${t.ranking === 'points' ? 'points' : 'wins'}`
+}
+
+// "Draft", "Ongoing 3/6 played", "Finished"
+export function statusText(t: Pick<TournamentSummary, 'status' | 'matchCount' | 'playedCount'>): string {
+  if (t.status === 'draft') return 'Draft'
+  if (t.matchCount > 0 && t.playedCount === t.matchCount) return 'Finished'
+  return `Ongoing ${t.playedCount}/${t.matchCount} played`
 }

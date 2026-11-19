@@ -16,6 +16,7 @@ import {
   removeTournamentPlayer,
   setTournamentActive,
   transaction,
+  type TournamentMatchRow,
   type TournamentPlayerRow,
   type TournamentRanking,
   type TournamentRow,
@@ -38,6 +39,7 @@ export interface TournamentMatchView {
   state: "unplayed" | "pending" | "played"; // pending = reported, waiting for the opponent to confirm
   scoreA: number | null; // from player A's side, once played
   scoreB: number | null;
+  pendingReport: TournamentMatchRow["pendingReport"]; // the report waiting for confirmation, so the page can confirm it
 }
 
 export interface TournamentDetails extends TournamentRow {
@@ -148,9 +150,10 @@ export function getTournamentDetails(tournamentId: number): TournamentDetails | 
     round: m.round,
     playerA: { id: m.playerA, displayName: nameOf(m.playerA) },
     playerB: { id: m.playerB, displayName: nameOf(m.playerB) },
-    state: m.matchId !== null ? "played" : m.pendingReportId !== null ? "pending" : "unplayed",
+    state: m.matchId !== null ? "played" : m.pendingReport !== null ? "pending" : "unplayed",
     scoreA: m.scoreA,
     scoreB: m.scoreB,
+    pendingReport: m.pendingReport,
   }));
 
   const played = matches.flatMap((m) =>
