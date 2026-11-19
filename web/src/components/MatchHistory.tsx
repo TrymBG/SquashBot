@@ -17,15 +17,15 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
     getNextPageParam: (lastPage) => lastPage.nextBefore ?? undefined, // undefined = no more pages
   })
 
-  if (isPending) return <p className="text-slate-400">Loading matches…</p>
-  if (isError) return <p className="text-red-400">Could not load the match history.</p>
+  if (isPending) return <p className="text-muted">Loading matches…</p>
+  if (isError) return <p className="text-loss">Could not load the match history.</p>
 
   const matches = data.pages.flatMap((page) => page.matches)
-  if (matches.length === 0) return <p className="text-slate-400">No matches with these filters.</p>
+  if (matches.length === 0) return <p className="text-muted">No matches with these filters.</p>
 
   return (
     <div>
-      <ul className="divide-y divide-slate-800">
+      <ul className="divide-y divide-line">
         {matches.map((match) => {
           return (
             <li key={match.matchId} className="flex items-center gap-3 py-3">
@@ -35,15 +35,15 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
                 <span className="truncate">{match.opponentName}</span>
               </Link>
               {match.tournament && (
-                <Link to={`/tournaments/${match.tournament.id}`} className="truncate text-xs text-amber-300 hover:underline">
+                <Link to={`/tournaments/${match.tournament.id}`} className="truncate text-xs text-accent hover:underline">
                   🏆 {match.tournament.name}
                 </Link>
               )}
               <span className="font-semibold tabular-nums">
                 {match.myGames}–{match.opponentGames}
               </span>
-              <span className="w-10 text-sm text-slate-400">{formatMatchFormat(match.format)}</span>
-              <span className="hidden w-28 text-sm text-slate-400 sm:inline">{formatDate(match.playedAt)}</span>
+              <span className="w-10 text-sm text-muted">{formatMatchFormat(match.format)}</span>
+              <span className="hidden w-28 text-sm text-muted sm:inline">{formatDate(match.playedAt)}</span>
               <RatingChange match={match} />
             </li>
           )
@@ -55,7 +55,7 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
           type="button"
           onClick={() => fetchNextPage()}
           disabled={isFetchingNextPage}
-          className="mt-4 w-full rounded border border-slate-700 py-2 text-sm text-slate-300 hover:bg-slate-900 disabled:opacity-50"
+          className="mt-4 w-full rounded border border-line-strong py-2 text-sm text-soft hover:bg-surface-hover disabled:opacity-50"
         >
           {isFetchingNextPage ? 'Loading…' : 'Load more'}
         </button>
@@ -69,13 +69,13 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
 function RatingChange({ match }: { match: PlayerMatch }) {
   if (match.ratingBefore !== null && match.ratingAfter !== null) {
     return (
-      <span className={`w-16 text-right font-semibold tabular-nums ${match.won ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <span className={`w-16 text-right font-semibold tabular-nums ${match.won ? 'text-win' : 'text-loss'}`}>
         {formatRatingChange(match.ratingBefore, match.ratingAfter)}
       </span>
     )
   }
   return (
-    <span className="w-16 text-right text-xs text-slate-500" title={match.ranked ? 'Rated when the tournament is finished' : undefined}>
+    <span className="w-16 text-right text-xs text-faint" title={match.ranked ? 'Rated when the tournament is finished' : undefined}>
       {match.ranked ? 'Pending' : 'Unranked'}
     </span>
   )

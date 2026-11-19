@@ -19,24 +19,24 @@ export default function TournamentPage() {
   const tournament = useTournament(Number(id))
   const currentUser = useCurrentUser()
 
-  if (tournament.isPending) return <p className="text-slate-400">Loading…</p>
-  if (isNotFound(tournament.error) || !/^\d+$/.test(id)) return <p className="text-slate-400">Tournament not found.</p>
-  if (tournament.isError) return <p className="text-red-400">Could not load the tournament.</p>
+  if (tournament.isPending) return <p className="text-muted">Loading…</p>
+  if (isNotFound(tournament.error) || !/^\d+$/.test(id)) return <p className="text-muted">Tournament not found.</p>
+  if (tournament.isError) return <p className="text-loss">Could not load the tournament.</p>
 
   const t = tournament.data
   return (
     <div className="space-y-8">
-      <Link to="/tournaments" className="text-sm text-slate-400 hover:underline">
+      <Link to="/tournaments" className="text-sm text-muted hover:underline">
         ← Tournaments
       </Link>
       <header>
         <h1 className="text-2xl font-bold">{t.name}</h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted">
           {describeTournament(t)} · by {t.organizer.displayName} · {statusText(t)}
         </p>
       </header>
       {t.status === 'active' && !t.finished && t.ranked && (
-        <p className="text-sm text-slate-400">Ratings update when the tournament is finished.</p>
+        <p className="text-sm text-muted">Ratings update when the tournament is finished.</p>
       )}
       {t.status === 'draft' ? <DraftView t={t} currentUser={currentUser} /> : <ActiveView t={t} currentUser={currentUser} />}
     </div>
@@ -53,9 +53,9 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Players ({t.players.length})</h2>
-      {t.players.length === 0 && <p className="text-slate-400">No players yet.</p>}
-      <ul className="divide-y divide-slate-800">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Players ({t.players.length})</h2>
+      {t.players.length === 0 && <p className="text-muted">No players yet.</p>}
+      <ul className="divide-y divide-line">
         {t.players.map((p) => (
           <li key={p.playerId} className="flex items-center justify-between py-2">
             <Link to={`/players/${p.playerId}`} className="hover:underline">
@@ -67,7 +67,7 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
                 aria-label={`Remove ${p.displayName}`}
                 disabled={remove.isPending}
                 onClick={() => remove.mutate(p.playerId)}
-                className="text-slate-500 hover:text-rose-400"
+                className="text-faint hover:text-loss"
               >
                 ✕
               </button>
@@ -79,16 +79,16 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
       {isOrganizer && currentUser ? (
         <>
           <AddPlayer t={t} currentUser={currentUser} />
-          {error && <p className="text-sm text-rose-400">{error.message}</p>}
+          {error && <p className="text-sm text-loss">{error.message}</p>}
           <button
             type="button"
             disabled={tooFew || start.isPending}
             onClick={() => start.mutate()}
-            className="rounded bg-emerald-600 px-4 py-2 font-semibold hover:bg-emerald-500 disabled:opacity-50"
+            className="rounded bg-win-strong px-4 py-2 font-semibold hover:brightness-110 disabled:opacity-50"
           >
             {start.isPending ? 'Starting…' : 'Start tournament'}
           </button>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted">
             {tooFew
               ? `Add at least ${minPlayers} players to start.`
               : t.type === 'knockout'
@@ -97,7 +97,7 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
           </p>
         </>
       ) : (
-        <p className="text-slate-400">Waiting for {t.organizer.displayName} to start the tournament.</p>
+        <p className="text-muted">Waiting for {t.organizer.displayName} to start the tournament.</p>
       )}
     </section>
   )
@@ -114,7 +114,7 @@ function AddPlayer({ t, currentUser }: { t: TournamentDetails; currentUser: User
     ...(opponents.data ?? []),
   ].filter((p) => !joined.has(p.id))
 
-  if (candidates.length === 0) return <p className="text-sm text-slate-400">Everyone with an account is in.</p>
+  if (candidates.length === 0) return <p className="text-sm text-muted">Everyone with an account is in.</p>
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -122,7 +122,7 @@ function AddPlayer({ t, currentUser }: { t: TournamentDetails; currentUser: User
         aria-label="Player to add"
         value={playerId}
         onChange={(e) => setPlayerId(e.target.value)}
-        className="rounded border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
+        className="rounded border border-line-strong bg-surface px-3 py-2 text-ink"
       >
         <option value="" disabled>
           Choose a player…
@@ -137,11 +137,11 @@ function AddPlayer({ t, currentUser }: { t: TournamentDetails; currentUser: User
         type="button"
         disabled={!playerId || add.isPending}
         onClick={() => add.mutate(playerId, { onSuccess: () => setPlayerId('') })}
-        className="rounded border border-slate-600 px-3 py-2 hover:bg-slate-800 disabled:opacity-50"
+        className="rounded border border-line-strong px-3 py-2 hover:bg-surface-hover disabled:opacity-50"
       >
         Add
       </button>
-      {add.error && <p className="w-full text-sm text-rose-400">{add.error.message}</p>}
+      {add.error && <p className="w-full text-sm text-loss">{add.error.message}</p>}
     </div>
   )
 }
@@ -154,21 +154,21 @@ function ActiveView({ t, currentUser }: { t: TournamentDetails; currentUser: Use
   return (
     <>
       {t.finished && (
-        <p className="rounded bg-amber-950 px-4 py-3 font-semibold text-amber-300">
+        <p className="rounded bg-accent/10 px-4 py-3 font-semibold text-accent">
           🏆 {winners.length > 1 ? 'Shared first place' : 'Winner'}: {winners.join(' & ')}
         </p>
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Standings</h2>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Standings</h2>
         <StandingsTable rows={t.standings} ranking={t.ranking ?? 'wins'} />
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Schedule</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Schedule</h2>
         {t.rounds.map(({ round, name }) => (
           <div key={round}>
-            <h3 className="mb-1 text-sm text-slate-400">{name}</h3>
+            <h3 className="mb-1 text-sm text-muted">{name}</h3>
             <ul className="space-y-1">
               {t.matches
                 .filter((m) => m.round === round)
@@ -189,14 +189,14 @@ function KnockoutView({ t, currentUser }: { t: TournamentDetails; currentUser: U
   return (
     <>
       {t.finished && podium && (
-        <div className="space-y-1 rounded bg-amber-950 px-4 py-3 text-amber-200">
-          <p className="text-lg font-semibold text-amber-300">🥇 {podium.first?.displayName}</p>
+        <div className="space-y-1 rounded bg-accent/10 px-4 py-3 text-ink">
+          <p className="text-lg font-semibold text-accent">🥇 {podium.first?.displayName}</p>
           <p>🥈 {podium.second?.displayName}</p>
           {podium.third.length > 0 && <p>🥉 {podium.third.map((p) => p.displayName).join(' & ')}</p>}
         </div>
       )}
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Bracket</h2>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Bracket</h2>
         <BracketView t={t} currentUser={currentUser} />
       </section>
     </>

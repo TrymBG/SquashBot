@@ -23,16 +23,16 @@ export default function TournamentsPage() {
 
       <section>
         <h2 className="mb-3 text-2xl font-bold">Tournaments</h2>
-        {tournaments.isPending && <p className="text-slate-400">Loading…</p>}
-        {tournaments.isError && <p className="text-red-400">Could not load the tournaments.</p>}
-        {tournaments.data?.length === 0 && <p className="text-slate-400">No tournaments yet.</p>}
-        <ul className="divide-y divide-slate-800">
+        {tournaments.isPending && <p className="text-muted">Loading…</p>}
+        {tournaments.isError && <p className="text-loss">Could not load the tournaments.</p>}
+        {tournaments.data?.length === 0 && <p className="text-muted">No tournaments yet.</p>}
+        <ul className="divide-y divide-line">
           {tournaments.data?.map((t) => (
             <li key={t.id} className="py-3">
               <Link to={`/tournaments/${t.id}`} className="font-semibold hover:underline">
                 {t.name}
               </Link>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-muted">
                 {describeTournament(t)} · by {t.organizerName} · {t.playerCount} players · {statusText(t)}
               </p>
             </li>
@@ -44,7 +44,7 @@ export default function TournamentsPage() {
 }
 
 const selectClass =
-  'w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 outline-none focus:border-sky-500'
+  'w-full rounded border border-line-strong bg-surface px-3 py-2 text-ink outline-none focus:border-accent'
 
 function CreateTournamentForm() {
   const navigate = useNavigate()
@@ -68,14 +68,14 @@ function CreateTournamentForm() {
     <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
       <TextField label="Name" required maxLength={60} value={name} onValueChange={setName} />
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Type</span>
+        <span className="mb-1 block text-sm text-muted">Type</span>
         <select value={type} onChange={(e) => setType(e.target.value as 'round_robin' | 'knockout')} className={selectClass}>
           <option value="round_robin">Round robin</option>
           <option value="knockout">Knockout</option>
         </select>
       </label>
       <label className="block">
-        <span className="mb-1 block text-sm text-slate-400">Match format</span>
+        <span className="mb-1 block text-sm text-muted">Match format</span>
         <select
           value={matchFormat}
           onChange={(e) => {
@@ -94,7 +94,7 @@ function CreateTournamentForm() {
       </label>
       {type === 'round_robin' ? (
         <label className="block">
-          <span className="mb-1 block text-sm text-slate-400">Ranked by</span>
+          <span className="mb-1 block text-sm text-muted">Ranked by</span>
           <select value={ranking} onChange={(e) => setRanking(e.target.value as TournamentRanking)} className={selectClass}>
             <option value="wins">Match wins</option>
             <option value="points" disabled={!isRally}>
@@ -111,17 +111,17 @@ function CreateTournamentForm() {
       <label className="flex items-center gap-2 sm:col-span-2">
         <input type="checkbox" checked={unranked} onChange={(e) => setUnranked(e.target.checked)} />
         <span className="text-sm">Unranked tournament</span>
-        <span className="text-sm text-slate-400">(results don't change anyone's rating)</span>
+        <span className="text-sm text-muted">(results don't change anyone's rating)</span>
       </label>
       <div className="sm:col-span-2">
-        <p className="mb-2 text-sm text-slate-400">
+        <p className="mb-2 text-sm text-muted">
           {type === 'round_robin'
             ? 'Round robin: everyone plays everyone once (3–16 players).'
             : 'Knockout: lose once and you are out (4–16 players, seeded by rating, byes for the top seeds).'}{' '}
           You add the players next.
         </p>
-        {create.error && <p className="mb-2 text-sm text-rose-400">{create.error.message}</p>}
-        <button type="submit" disabled={create.isPending} className="rounded bg-sky-600 px-4 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50">
+        {create.error && <p className="mb-2 text-sm text-loss">{create.error.message}</p>}
+        <button type="submit" disabled={create.isPending} className="rounded bg-accent text-on-accent px-4 py-2 font-semibold hover:bg-accent-hover disabled:opacity-50">
           {create.isPending ? 'Creating…' : 'Create tournament'}
         </button>
       </div>

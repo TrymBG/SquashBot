@@ -13,7 +13,7 @@ export default function BracketView({ t, currentUser }: { t: TournamentDetails; 
           const thirdPlace = t.matches.find((m) => m.round === round && m.thirdPlace)
           return (
             <section key={round} className="flex w-56 shrink-0 flex-col">
-              <h3 className="mb-2 text-sm font-semibold text-slate-400">{name}</h3>
+              <h3 className="mb-2 text-sm font-semibold text-muted">{name}</h3>
               {/* justify-around spreads the cards so each sits roughly between the two it comes from */}
               <ul className="flex flex-1 flex-col justify-around gap-3">
                 {matches.map((m) => (
@@ -22,7 +22,7 @@ export default function BracketView({ t, currentUser }: { t: TournamentDetails; 
               </ul>
               {thirdPlace && (
                 <div className="mt-6">
-                  <h3 className="mb-2 text-sm font-semibold text-slate-400">3rd place</h3>
+                  <h3 className="mb-2 text-sm font-semibold text-muted">3rd place</h3>
                   <ul>
                     <TournamentMatchRow match={thirdPlace} matchFormat={t.matchFormat} currentUser={currentUser} compact />
                   </ul>

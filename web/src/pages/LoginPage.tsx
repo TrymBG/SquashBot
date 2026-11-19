@@ -32,18 +32,18 @@ export default function LoginPage() {
           value={password}
           onValueChange={setPassword}
         />
-        {loginMutation.error && <p className="text-sm text-rose-400">{loginMutation.error.message}</p>}
+        {loginMutation.error && <p className="text-sm text-loss">{loginMutation.error.message}</p>}
         <button
           type="submit"
           disabled={loginMutation.isPending}
-          className="w-full rounded bg-sky-600 py-2 font-semibold hover:bg-sky-500 disabled:opacity-50"
+          className="w-full rounded bg-accent text-on-accent py-2 font-semibold hover:bg-accent-hover disabled:opacity-50"
         >
           {loginMutation.isPending ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="mt-6 text-sm text-slate-400">
+      <p className="mt-6 text-sm text-muted">
         Got an invite?{' '}
-        <Link to="/signup" className="text-sky-400 hover:underline">
+        <Link to="/signup" className="text-accent hover:underline">
           Sign up
         </Link>
       </p>

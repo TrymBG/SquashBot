@@ -5,7 +5,7 @@ import type { OpponentRecord } from '../api.ts'
 import { FORMATS } from '../formats.ts'
 
 const selectClass =
-  'rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-100 outline-none focus:border-sky-500'
+  'rounded border border-line-strong bg-surface px-2 py-1 text-sm text-ink outline-none focus:border-accent'
 
 export default function MatchFilters({ opponents }: { opponents: OpponentRecord[] }) {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -45,7 +45,7 @@ export default function MatchFilters({ opponents }: { opponents: OpponentRecord[
         ))}
       </select>
       {(opponent || format) && (
-        <button type="button" onClick={() => setSearchParams({}, { replace: true })} className="text-sm text-slate-400 hover:underline">
+        <button type="button" onClick={() => setSearchParams({}, { replace: true })} className="text-sm text-muted hover:underline">
           Clear filters
         </button>
       )}

@@ -10,7 +10,7 @@ export default function ResultsPage() {
   const currentUser = useCurrentUser()
   const reports = useReports(Boolean(currentUser))
 
-  if (currentUser === undefined) return <p className="text-slate-400">Loading…</p>
+  if (currentUser === undefined) return <p className="text-muted">Loading…</p>
   if (currentUser === null) return <Navigate to="/login" replace />
 
   return (
@@ -34,12 +34,12 @@ export default function ResultsPage() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">{title}</h2>
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
       {children}
     </section>
   )
 }
 
 function ReportsStatus({ isError }: { isError: boolean }) {
-  return isError ? <p className="text-red-400">Could not load the reports.</p> : <p className="text-slate-400">Loading…</p>
+  return isError ? <p className="text-loss">Could not load the reports.</p> : <p className="text-muted">Loading…</p>
 }

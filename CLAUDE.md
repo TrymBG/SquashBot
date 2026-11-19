@@ -37,6 +37,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `NODE_ENV=production` (Secure cookies), `WEB_DIST_PATH` (production: `web/dist`, Fastify serves the site), `BACKUP_DIR` (default `backups`)), never committed. Claude never reads `.env`
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
+- **Colours only through design tokens** (`web/src/index.css` `@theme`: canvas, surface, line, ink, muted, accent, win, loss, …), never Tailwind's
+  palette classes (`slate-*`, `sky-*`, …) or hex values in components. Palette: matte neutral charcoal + squash-ball yellow `#e3c13b` (2026-11-20).
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
 
 ## Project structure

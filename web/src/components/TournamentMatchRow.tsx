@@ -18,11 +18,11 @@ interface Props {
 const buttonClass = 'rounded px-3 py-1 text-sm font-semibold disabled:opacity-50'
 
 function PlayerName({ player }: { player: MatchPlayer | null }) {
-  if (!player) return <span className="text-slate-500">TBD</span>
+  if (!player) return <span className="text-faint">TBD</span>
   return (
     <span>
       {player.displayName}
-      {player.seed !== null && <span className="text-xs text-slate-500"> ({player.seed})</span>}
+      {player.seed !== null && <span className="text-xs text-faint"> ({player.seed})</span>}
     </span>
   )
 }
@@ -33,7 +33,7 @@ export default function TournamentMatchRow({ match, matchFormat, currentUser, co
   const bothKnown = match.playerA !== null && match.playerB !== null
 
   return (
-    <li className={`rounded px-3 py-2 ${mine ? 'bg-slate-900 ring-1 ring-sky-800' : compact ? 'bg-slate-900/50' : ''}`}>
+    <li className={`rounded px-3 py-2 ${mine ? 'bg-surface ring-1 ring-accent/40' : compact ? 'bg-surface/50' : ''}`}>
       {compact ? (
         // Bracket card: one player per line, each with their score.
         <div className="space-y-1">
@@ -50,14 +50,14 @@ export default function TournamentMatchRow({ match, matchFormat, currentUser, co
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="flex-1">
-            <PlayerName player={match.playerA} /> <span className="text-slate-500">vs</span> <PlayerName player={match.playerB} />
+            <PlayerName player={match.playerA} /> <span className="text-faint">vs</span> <PlayerName player={match.playerB} />
           </span>
           {match.state === 'played' && (
             <span className="font-semibold tabular-nums">
               {match.scoreA}–{match.scoreB}
             </span>
           )}
-          {match.state === 'unplayed' && !mine && <span className="text-sm text-slate-500">Not played</span>}
+          {match.state === 'unplayed' && !mine && <span className="text-sm text-faint">Not played</span>}
         </div>
       )}
       {match.state === 'pending' && match.pendingReport && bothKnown && <PendingReport match={match} me={me} />}
@@ -85,26 +85,26 @@ function PendingReport({ match, me }: { match: TournamentMatch; me: string | und
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-      <span className="flex-1 text-slate-300">
+      <span className="flex-1 text-soft">
         {reporterName} reported {scoreA}–{scoreB}
-        {!iAmOpponent && <span className="text-slate-500"> · waiting for {opponentName}</span>}
+        {!iAmOpponent && <span className="text-faint"> · waiting for {opponentName}</span>}
       </span>
       {iAmOpponent && (
         <>
-          <button type="button" disabled={busy} onClick={() => confirm.mutate(report.id)} className={`${buttonClass} bg-emerald-600 hover:bg-emerald-500`}>
+          <button type="button" disabled={busy} onClick={() => confirm.mutate(report.id)} className={`${buttonClass} bg-win-strong hover:brightness-110`}>
             Confirm
           </button>
-          <button type="button" disabled={busy} onClick={() => reject.mutate(report.id)} className={`${buttonClass} border border-slate-600 hover:bg-slate-800`}>
+          <button type="button" disabled={busy} onClick={() => reject.mutate(report.id)} className={`${buttonClass} border border-line-strong hover:bg-surface-hover`}>
             Reject
           </button>
         </>
       )}
       {me === report.reporterId && (
-        <button type="button" disabled={busy} onClick={() => cancel.mutate(report.id)} className={`${buttonClass} border border-slate-600 hover:bg-slate-800`}>
+        <button type="button" disabled={busy} onClick={() => cancel.mutate(report.id)} className={`${buttonClass} border border-line-strong hover:bg-surface-hover`}>
           Cancel
         </button>
       )}
-      {error && <p className="w-full text-rose-400">{error.message}</p>}
+      {error && <p className="w-full text-loss">{error.message}</p>}
     </div>
   )
 }
@@ -120,7 +120,7 @@ function ReportForm({ match, matchFormat, me }: { match: TournamentMatch; matchF
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-2 text-sm text-sky-400 hover:underline">
+      <button type="button" onClick={() => setOpen(true)} className="mt-2 text-sm text-accent hover:underline">
         Report result
       </button>
     )
@@ -141,12 +141,12 @@ function ReportForm({ match, matchFormat, me }: { match: TournamentMatch; matchF
 
   return (
     <form onSubmit={handleSubmit} className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-      <span className="text-slate-400">vs {opponent.displayName}:</span>
+      <span className="text-muted">vs {opponent.displayName}:</span>
       <select
         aria-label="Result"
         value={resultIndex}
         onChange={(e) => setResultIndex(Number(e.target.value))}
-        className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-slate-100"
+        className="rounded border border-line-strong bg-surface px-2 py-1 text-ink"
       >
         {results.map((r, index) => (
           <option key={r.label} value={index}>
@@ -154,13 +154,13 @@ function ReportForm({ match, matchFormat, me }: { match: TournamentMatch; matchF
           </option>
         ))}
       </select>
-      <button type="submit" disabled={create.isPending} className={`${buttonClass} bg-sky-600 hover:bg-sky-500`}>
+      <button type="submit" disabled={create.isPending} className={`${buttonClass} bg-accent text-on-accent hover:bg-accent-hover`}>
         {create.isPending ? 'Sending…' : `Send to ${opponent.displayName}`}
       </button>
-      <button type="button" onClick={() => setOpen(false)} className="text-slate-400 hover:underline">
+      <button type="button" onClick={() => setOpen(false)} className="text-muted hover:underline">
         Cancel
       </button>
-      {create.error && <p className="w-full text-rose-400">{create.error.message}</p>}
+      {create.error && <p className="w-full text-loss">{create.error.message}</p>}
     </form>
   )
 }

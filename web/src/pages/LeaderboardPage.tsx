@@ -11,15 +11,15 @@ export default function LeaderboardPage() {
     queryFn: fetchLeaderboard,
   })
 
-  if (isPending) return <p className="text-slate-400">Loading…</p>
-  if (isError) return <p className="text-red-400">Could not load the leaderboard. Is the API running?</p>
-  if (players.length === 0) return <p className="text-slate-400">No matches yet. Use /result in Discord to log one!</p>
+  if (isPending) return <p className="text-muted">Loading…</p>
+  if (isError) return <p className="text-loss">Could not load the leaderboard. Is the API running?</p>
+  if (players.length === 0) return <p className="text-muted">No matches yet. Use /result in Discord to log one!</p>
 
   return (
     <section>
       <h1 className="mb-4 text-2xl font-bold">Leaderboard</h1>
       <table className="w-full text-left">
-        <thead className="text-sm text-slate-400">
+        <thead className="text-sm text-muted">
           <tr>
             <th className="w-12 py-2">#</th>
             <th className="py-2">Player</th>
@@ -32,8 +32,8 @@ export default function LeaderboardPage() {
           {players.map((player, index) => {
             const played = player.wins + player.losses
             return (
-              <tr key={player.id} className="border-t border-slate-800">
-                <td className="py-3 text-slate-400">{index + 1}</td>
+              <tr key={player.id} className="border-t border-line">
+                <td className="py-3 text-muted">{index + 1}</td>
                 <td className="py-3">
                   <Link to={`/players/${player.id}`} className="flex items-center gap-3 hover:underline">
                     <Avatar name={player.displayName} url={player.avatarUrl} />

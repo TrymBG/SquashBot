@@ -7,13 +7,13 @@ import { useCancelReport, useConfirmReport, useRejectReport } from '../reports.t
 export default function ReportList({ reports, kind }: { reports: Report[]; kind: 'incoming' | 'outgoing' }) {
   if (reports.length === 0) {
     return (
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-muted">
         {kind === 'incoming' ? 'Nothing waiting for you.' : 'No reports waiting for your opponents.'}
       </p>
     )
   }
   return (
-    <ul className="divide-y divide-slate-800">
+    <ul className="divide-y divide-line">
       {reports.map((report) =>
         kind === 'incoming' ? <IncomingRow key={report.id} report={report} /> : <OutgoingRow key={report.id} report={report} />,
       )}
@@ -30,10 +30,10 @@ function resultFromMySide(report: Report, iAmReporter: boolean): string {
 
 function Details({ report }: { report: Report }) {
   return (
-    <span className="text-sm text-slate-400">
+    <span className="text-sm text-muted">
       {formatMatchFormat(report.format)} · {formatDate(report.playedAt)}
-      {report.tournamentName && <span className="text-amber-300"> · 🏆 {report.tournamentName}</span>}
-      {!report.ranked && <span className="text-sky-300"> · Unranked</span>}
+      {report.tournamentName && <span className="text-accent"> · 🏆 {report.tournamentName}</span>}
+      {!report.ranked && <span className="text-accent"> · Unranked</span>}
     </span>
   )
 }
@@ -53,13 +53,13 @@ function IncomingRow({ report }: { report: Report }) {
           <span className="font-semibold">{resultFromMySide(report, false)}</span>
         </p>
         <Details report={report} />
-        {error && <p className="text-sm text-rose-400">{error.message}</p>}
+        {error && <p className="text-sm text-loss">{error.message}</p>}
       </div>
       <button
         type="button"
         disabled={busy}
         onClick={() => confirm.mutate(report.id)}
-        className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50"
+        className="rounded bg-win-strong px-3 py-1 text-sm font-semibold hover:brightness-110 disabled:opacity-50"
       >
         Confirm
       </button>
@@ -67,7 +67,7 @@ function IncomingRow({ report }: { report: Report }) {
         type="button"
         disabled={busy}
         onClick={() => reject.mutate(report.id)}
-        className="rounded border border-slate-600 px-3 py-1 text-sm hover:bg-slate-800 disabled:opacity-50"
+        className="rounded border border-line-strong px-3 py-1 text-sm hover:bg-surface-hover disabled:opacity-50"
       >
         Reject
       </button>
@@ -84,16 +84,16 @@ function OutgoingRow({ report }: { report: Report }) {
         <p>
           You <span className="font-semibold">{resultFromMySide(report, true)}</span> vs{' '}
           <span className="font-semibold">{report.opponentName}</span>
-          <span className="text-slate-400"> · waiting for {report.opponentName}</span>
+          <span className="text-muted"> · waiting for {report.opponentName}</span>
         </p>
         <Details report={report} />
-        {cancel.error && <p className="text-sm text-rose-400">{cancel.error.message}</p>}
+        {cancel.error && <p className="text-sm text-loss">{cancel.error.message}</p>}
       </div>
       <button
         type="button"
         disabled={cancel.isPending}
         onClick={() => cancel.mutate(report.id)}
-        className="rounded border border-slate-600 px-3 py-1 text-sm hover:bg-slate-800 disabled:opacity-50"
+        className="rounded border border-line-strong px-3 py-1 text-sm hover:bg-surface-hover disabled:opacity-50"
       >
         Cancel
       </button>
