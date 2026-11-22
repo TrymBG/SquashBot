@@ -8,6 +8,7 @@ import { fetchPlayerMatches, type MatchFilters, type PlayerMatch } from '../api.
 import { formatDate, formatMatchFormat, formatRatingChange } from '../format.ts'
 import Avatar from './Avatar.tsx'
 import ResultBadge from './ResultBadge.tsx'
+import TrophyIcon from './TrophyIcon.tsx'
 
 export default function MatchHistory({ playerId, filters = {} }: { playerId: string; filters?: MatchFilters }) {
   const { data, isPending, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -35,11 +36,15 @@ export default function MatchHistory({ playerId, filters = {} }: { playerId: str
                 <span className="truncate">{match.opponentName}</span>
               </Link>
               {match.tournament && (
-                <Link to={`/tournaments/${match.tournament.id}`} className="truncate text-xs text-accent hover:underline">
-                  🏆 {match.tournament.name}
+                <Link
+                  to={`/tournaments/${match.tournament.id}`}
+                  className="inline-flex min-w-0 items-center gap-1 text-xs text-accent hover:underline"
+                >
+                  <TrophyIcon className="h-3.5 w-3.5" />
+                  <span className="truncate">{match.tournament.name}</span>
                 </Link>
               )}
-              <span className="font-semibold tabular-nums">
+              <span className="type-figure text-lg">
                 {match.myGames}–{match.opponentGames}
               </span>
               <span className="w-10 text-sm text-muted">{formatMatchFormat(match.format)}</span>

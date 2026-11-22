@@ -87,7 +87,7 @@ function PendingReport({ match, me }: { match: TournamentMatch; me: string | und
     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
       <span className="flex-1 text-soft">
         {reporterName} reported {scoreA}–{scoreB}
-        {!iAmOpponent && <span className="text-faint"> · waiting for {opponentName}</span>}
+        {!iAmOpponent && <span className="block text-faint">Waiting for {opponentName} to confirm</span>}
       </span>
       {iAmOpponent && (
         <>

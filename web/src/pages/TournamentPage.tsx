@@ -5,6 +5,8 @@ import { Link, useParams } from 'react-router'
 import { isNotFound, type TournamentDetails, type User } from '../api.ts'
 import { useCurrentUser } from '../auth.ts'
 import BracketView from '../components/BracketView.tsx'
+import Meta from '../components/Meta.tsx'
+import TrophyIcon from '../components/TrophyIcon.tsx'
 import StandingsTable from '../components/StandingsTable.tsx'
 import TournamentMatchRow from '../components/TournamentMatchRow.tsx'
 import { useOpponents } from '../reports.ts'
@@ -30,10 +32,12 @@ export default function TournamentPage() {
         ← Tournaments
       </Link>
       <header>
-        <h1 className="text-2xl font-bold">{t.name}</h1>
-        <p className="text-sm text-muted">
-          {describeTournament(t)} · by {t.organizer.displayName} · {statusText(t)}
-        </p>
+        <h1 className="type-title">{t.name}</h1>
+        <Meta className="mt-1">
+          {describeTournament(t)}
+          <span>Organised by {t.organizer.displayName}</span>
+          <span className="text-soft">{statusText(t)}</span>
+        </Meta>
       </header>
       {t.status === 'active' && !t.finished && t.ranked && (
         <p className="text-sm text-muted">Ratings update when the tournament is finished.</p>
@@ -53,7 +57,7 @@ function DraftView({ t, currentUser }: { t: TournamentDetails; currentUser: User
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Players ({t.players.length})</h2>
+      <h2 className="type-heading">Players ({t.players.length})</h2>
       {t.players.length === 0 && <p className="text-muted">No players yet.</p>}
       <ul className="divide-y divide-line">
         {t.players.map((p) => (
@@ -154,18 +158,19 @@ function ActiveView({ t, currentUser }: { t: TournamentDetails; currentUser: Use
   return (
     <>
       {t.finished && (
-        <p className="rounded bg-accent/10 px-4 py-3 font-semibold text-accent">
-          🏆 {winners.length > 1 ? 'Shared first place' : 'Winner'}: {winners.join(' & ')}
+        <p className="flex items-center gap-2 rounded-sm bg-accent/10 px-4 py-3 font-semibold text-accent">
+          <TrophyIcon className="h-5 w-5" />
+          {winners.length > 1 ? 'Shared first place' : 'Winner'}: {winners.join(' & ')}
         </p>
       )}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Standings</h2>
+        <h2 className="mb-2 type-heading">Standings</h2>
         <StandingsTable rows={t.standings} ranking={t.ranking ?? 'wins'} />
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Schedule</h2>
+        <h2 className="type-heading">Schedule</h2>
         {t.rounds.map(({ round, name }) => (
           <div key={round}>
             <h3 className="mb-1 text-sm text-muted">{name}</h3>
@@ -196,7 +201,7 @@ function KnockoutView({ t, currentUser }: { t: TournamentDetails; currentUser: U
         </div>
       )}
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Bracket</h2>
+        <h2 className="mb-2 type-heading">Bracket</h2>
         <BracketView t={t} currentUser={currentUser} />
       </section>
     </>

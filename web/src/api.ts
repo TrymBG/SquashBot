@@ -12,6 +12,7 @@ export interface LeaderboardRow {
   rating: number
   wins: number
   losses: number
+  rankChange: number | null // places gained (+) or lost (−) since 7 days ago; null = new on the ladder this week
 }
 
 export type Result = 'W' | 'L'
@@ -199,7 +200,7 @@ export interface Report {
   status: 'pending' | 'confirmed' | 'rejected' | 'cancelled'
   createdAt: string
   tournamentMatchId: number | null
-  tournamentName: string | null // for the "🏆 Winter cup" label
+  tournamentName: string | null // for the tournament label ("Winter cup") on the report
   ranked: boolean // false = unranked: the opponent sees it before confirming
 }
 

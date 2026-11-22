@@ -1,7 +1,10 @@
 // A list of pending reports, each written from the viewer's side.
 // Incoming (someone reported a match against you): Confirm / Reject. Outgoing (you reported): Cancel.
 import type { Report } from '../api.ts'
-import { formatDate, formatMatchFormat } from '../format.ts'
+import { formatDate } from '../format.ts'
+import FormatTag from './FormatTag.tsx'
+import Meta from './Meta.tsx'
+import TrophyIcon from './TrophyIcon.tsx'
 import { useCancelReport, useConfirmReport, useRejectReport } from '../reports.ts'
 
 export default function ReportList({ reports, kind }: { reports: Report[]; kind: 'incoming' | 'outgoing' }) {
@@ -30,11 +33,17 @@ function resultFromMySide(report: Report, iAmReporter: boolean): string {
 
 function Details({ report }: { report: Report }) {
   return (
-    <span className="text-sm text-muted">
-      {formatMatchFormat(report.format)} · {formatDate(report.playedAt)}
-      {report.tournamentName && <span className="text-accent"> · 🏆 {report.tournamentName}</span>}
-      {!report.ranked && <span className="text-accent"> · Unranked</span>}
-    </span>
+    <Meta>
+      <FormatTag format={report.format} />
+      {formatDate(report.playedAt)}
+      {report.tournamentName && (
+        <span className="inline-flex items-center gap-1 text-accent">
+          <TrophyIcon />
+          {report.tournamentName}
+        </span>
+      )}
+      {!report.ranked && <span className="text-accent">Unranked</span>}
+    </Meta>
   )
 }
 
@@ -84,8 +93,8 @@ function OutgoingRow({ report }: { report: Report }) {
         <p>
           You <span className="font-semibold">{resultFromMySide(report, true)}</span> vs{' '}
           <span className="font-semibold">{report.opponentName}</span>
-          <span className="text-muted"> · waiting for {report.opponentName}</span>
         </p>
+        <p className="text-sm text-muted">Waiting for {report.opponentName} to confirm</p>
         <Details report={report} />
         {cancel.error && <p className="text-sm text-loss">{cancel.error.message}</p>}
       </div>

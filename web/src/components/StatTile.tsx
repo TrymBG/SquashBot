@@ -12,7 +12,7 @@ export default function StatTile({ label, value, change }: Props) {
     <div>
       <p className="text-sm text-muted">{label}</p>
       <p className="flex items-baseline gap-3">
-        <span className="text-3xl font-semibold">{value}</span>
+        <span className="type-hero">{value}</span>
         {change && <Change {...change} />}
       </p>
     </div>

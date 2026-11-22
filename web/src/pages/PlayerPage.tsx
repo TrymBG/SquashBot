@@ -44,7 +44,7 @@ export default function PlayerPage() {
       ) : (
         <>
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Recent form</h2>
+            <h2 className="mb-2 type-heading">Recent form</h2>
             <div className="flex gap-1">
               {profile.recentForm.map((result, index) => (
                 <ResultBadge key={index} result={result} />
@@ -53,13 +53,13 @@ export default function PlayerPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">Rating</h2>
+            <h2 className="mb-2 type-heading">Rating</h2>
             <RatingChart history={profile.ratingHistory} />
           </section>
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Matches</h2>
+              <h2 className="type-heading">Matches</h2>
               <MatchFilters opponents={profile.opponents} />
             </div>
             {/* The record against the chosen opponent, over all their matches (not just the loaded page). */}
@@ -83,7 +83,7 @@ function ProfileHeader({ profile }: { profile: PlayerProfile }) {
     <header className="flex flex-wrap items-center gap-4">
       <Avatar name={profile.displayName} url={profile.avatarUrl} size="lg" />
       <div className="flex-1">
-        <h1 className="text-2xl font-bold">{profile.displayName}</h1>
+        <h1 className="type-title">{profile.displayName}</h1>
         {profile.position !== null && (
           <p className="text-sm text-muted">
             #{profile.position} of {profile.rankedPlayers}

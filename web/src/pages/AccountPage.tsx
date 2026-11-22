@@ -14,7 +14,7 @@ export default function AccountPage() {
 
   return (
     <section className="mx-auto max-w-xl space-y-6">
-      <h1 className="text-2xl font-bold">Account</h1>
+      <h1 className="type-title">Account</h1>
       <Panel title="Your account">
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted">Name</dt>
