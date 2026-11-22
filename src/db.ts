@@ -66,6 +66,15 @@ function initSchema(): void {
       expires_at TEXT NOT NULL
     );
 
+    -- One-time password reset links (made by the admin with 'npm run reset-link'). Only the token's hash is stored,
+    -- like sessions. Valid for a short time and only once (used_at is set when it's used).
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+      user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TEXT NOT NULL,
+      used_at    TEXT
+    );
+
     -- Results reported on the website. Pending until the opponent confirms; confirming records a real match.
     -- Scores are from the reporter's view. Resolved reports are kept (audit trail).
     CREATE TABLE IF NOT EXISTS match_reports (
@@ -139,6 +148,9 @@ function initSchema(): void {
   }
   addColumnIfMissing("tournaments", "ranked", "INTEGER NOT NULL DEFAULT 1");
   addColumnIfMissing("match_reports", "ranked", "INTEGER NOT NULL DEFAULT 1");
+  // Set when the player's web account was deleted: the player stays (as "Deleted player") so opponents' matches and
+  // ratings don't change, but is hidden from the leaderboard.
+  addColumnIfMissing("players", "deleted_at", "TEXT");
 }
 
 // Migration for databases created before a column existed. CREATE TABLE IF NOT EXISTS never changes an existing table.
@@ -415,6 +427,7 @@ export function getLeaderboard(limit = -1): LeaderboardRow[] {
       (SELECT COUNT(*) FROM matches WHERE loser_id = p.id AND rating_order IS NOT NULL) AS losses
     FROM players p
     WHERE EXISTS (SELECT 1 FROM matches WHERE (winner_id = p.id OR loser_id = p.id) AND rating_order IS NOT NULL)
+      AND p.deleted_at IS NULL
     ORDER BY p.rating DESC
     LIMIT ?
   `).all(limit) as {
@@ -643,6 +656,65 @@ export function deleteSession(tokenHash: string): void {
 // ISO timestamps in UTC sort as text, so a string comparison works for "older than now".
 export function deleteExpiredSessions(now: string): void {
   db.prepare("DELETE FROM sessions WHERE expires_at <= ?").run(now);
+}
+
+// Logs a user out everywhere (after a password reset).
+export function deleteSessionsForUser(userId: string): void {
+  db.prepare("DELETE FROM sessions WHERE user_id = ?").run(userId);
+}
+
+export function updatePasswordHash(userId: string, passwordHash: string): void {
+  db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(passwordHash, userId);
+}
+
+// Deletes the account row. Its sessions and reset links go with it (ON DELETE CASCADE); the player row stays.
+export function deleteUser(userId: string): void {
+  db.prepare("DELETE FROM users WHERE id = ?").run(userId);
+}
+
+// Replaces the player's name and avatar after their account is deleted. The id, matches and rating stay, so the
+// opponents' histories and ratings are unchanged.
+export function anonymisePlayer(playerId: string, displayName: string, deletedAt: string): void {
+  db.prepare("UPDATE players SET display_name = ?, avatar_url = NULL, deleted_at = ? WHERE id = ?").run(displayName, deletedAt, playerId);
+}
+
+// Draft tournaments (nothing played yet) the player organises: deleted with the account. Players cascade.
+export function deleteDraftTournamentsOrganisedBy(playerId: string): void {
+  db.prepare("DELETE FROM tournaments WHERE organizer_id = ? AND status = 'draft'").run(playerId);
+}
+
+// Takes the player out of every draft tournament they joined.
+export function removePlayerFromDraftTournaments(playerId: string): void {
+  db.prepare(`
+    DELETE FROM tournament_players
+    WHERE player_id = ? AND tournament_id IN (SELECT id FROM tournaments WHERE status = 'draft')
+  `).run(playerId);
+}
+
+// A new reset link replaces the user's older ones, so only the newest link works.
+export function replacePasswordReset(tokenHash: string, userId: string, expiresAt: string): void {
+  db.prepare("DELETE FROM password_resets WHERE user_id = ?").run(userId);
+  db.prepare("INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES (?, ?, ?)").run(tokenHash, userId, expiresAt);
+}
+
+export interface PasswordResetRow {
+  userId: string;
+  expiresAt: string;
+  usedAt: string | null;
+}
+
+export function getPasswordReset(tokenHash: string): PasswordResetRow | undefined {
+  const row = db.prepare("SELECT user_id, expires_at, used_at FROM password_resets WHERE token_hash = ?").get(tokenHash) as
+    | { user_id: string; expires_at: string; used_at: string | null }
+    | undefined;
+  return row && { userId: row.user_id, expiresAt: row.expires_at, usedAt: row.used_at };
+}
+
+// Marks the link as used. The WHERE only matches an unused link, so two requests at once can't both use it;
+// returns false if it was already used.
+export function markPasswordResetUsed(tokenHash: string, usedAt: string): boolean {
+  const result = db.prepare("UPDATE password_resets SET used_at = ? WHERE token_hash = ? AND used_at IS NULL").run(usedAt, tokenHash);
+  return Number(result.changes) === 1;
 }
 
 export type ReportStatus = "pending" | "confirmed" | "rejected" | "cancelled";

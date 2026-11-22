@@ -18,6 +18,7 @@ export interface ServerOptions {
   webDistPath?: string | null; // folder with the built website, or null to serve only the API (dev: Vite serves it)
   authRateLimit?: AuthOptions["rateLimit"];
   devLogin?: boolean; // dev-only "Log in as…" routes (never in production, see config.ts)
+  logger?: boolean; // log errors (default on; tests turn it off to keep the output clean)
 }
 
 // Login attempts (and, separately, sign-up attempts) allowed per IP address in the time window. Slows down password guessing.
@@ -34,8 +35,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const websitePath = "webDistPath" in options ? (options.webDistPath ?? null) : webDistPath;
 
   // trustProxy: in production Caddy sits in front and passes the visitor's real IP in X-Forwarded-For.
-  // Safe because the app only listens on 127.0.0.1, so Caddy is the only one who can reach it.
-  const app = Fastify({ trustProxy: true });
+  // Safe because the app only listens on localhost (index.ts, api.ts), so Caddy is the only one who can reach it.
+  // logger level "warn": errors and warnings reach the log (journalctl in production), but not one line per request,
+  // so no visitor IP addresses are stored.
+  const app = Fastify({ trustProxy: true, logger: (options.logger ?? true) ? { level: "warn" } : false });
+  addSecurityHeaders(app, auth.cookieSecure);
+  hideInternalErrors(app);
   app.register(fastifyCookie); // parses the Cookie header into request.cookies, adds reply.setCookie
   app.register(fastifyRateLimit, { global: false }); // only routes that ask for it (login, sign-up) are limited
   app.register(apiRoutes);
@@ -50,6 +55,44 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     serveWebsite(app, resolve(websitePath));
   }
   return app;
+}
+
+// Headers the browser should get on every response (API, pages, files, errors):
+// - nosniff: the browser trusts our Content-Type instead of guessing (a guessed "HTML" upload could run as a page).
+// - X-Frame-Options DENY: no other site can show ours inside a frame, so it can't trick you into clicking our buttons (clickjacking).
+// - Referrer-Policy: other sites we link to only see our domain, not the full page URL.
+// - X-Robots-Tag noindex: search engines don't list the site, so friends' names don't end up on Google (also robots.txt).
+// - HSTS (production only): the browser uses HTTPS for this site for a year, even if someone types http://.
+//   Not on localhost, where it would force HTTPS on every local project.
+function addSecurityHeaders(app: FastifyInstance, https: boolean): void {
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    reply.header("X-Robots-Tag", "noindex, nofollow");
+    if (https) {
+      reply.header("Strict-Transport-Security", "max-age=31536000");
+    }
+    return payload;
+  });
+}
+
+// A crash inside a route (a bug, a database error) answers 500 with a plain message, never the internal error text
+// (which could contain SQL or file paths). The full error goes to the log instead.
+// Errors with a status below 500 keep their answers: a real Error (like a 400 from schema validation) is rethrown to
+// Fastify's default handler; a plain object (the rate limit's 429 body from errorResponseBuilder) is sent as it is.
+function hideInternalErrors(app: FastifyInstance): void {
+  app.setErrorHandler((error, request, reply) => {
+    const status = (error as { statusCode?: number }).statusCode ?? 500;
+    if (status < 500) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      return reply.code(status).send(error);
+    }
+    request.log.error(error);
+    return reply.code(500).send({ error: "Something went wrong" });
+  });
 }
 
 // Serves the built React app. Real files (JS, CSS, images) are served as they are. Any other GET that isn't /api

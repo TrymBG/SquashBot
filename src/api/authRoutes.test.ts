@@ -3,6 +3,7 @@ import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { FastifyInstance } from "fastify";
 import { openDatabase } from "../db.js";
+import { createPasswordReset } from "../services/authService.js";
 import { buildServer } from "./server.js";
 
 const INVITE = "squash2026";
@@ -178,5 +179,53 @@ describe("rate limit on login and sign-up", () => {
     for (let i = 0; i < 5; i++) {
       assert.equal((await me()).statusCode, 401); // not logged in, but never 429
     }
+  });
+});
+
+describe("POST /api/reset-password", () => {
+  it("sets the new password and logs in with a cookie; the link then stops working", async () => {
+    await post("/api/signup", TRYM);
+    const token = createPasswordReset(TRYM.email)!;
+
+    const first = await post("/api/reset-password", { token, password: "a brand new one" });
+    const second = await post("/api/reset-password", { token, password: "a brand new one" });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal((await me(sessionFrom(first))).statusCode, 200);
+    assert.equal(second.statusCode, 400);
+    assert.match(second.json().error, /Ask for a new one/);
+  });
+
+  it("rejects a too-short password with 400", async () => {
+    await post("/api/signup", TRYM);
+    const token = createPasswordReset(TRYM.email)!;
+
+    assert.equal((await post("/api/reset-password", { token, password: "short" })).statusCode, 400);
+  });
+});
+
+describe("POST /api/account/delete", () => {
+  it("needs a login (401 before looking at the body)", async () => {
+    assert.equal((await post("/api/account/delete", {})).statusCode, 401);
+  });
+
+  it("refuses a wrong password with 403", async () => {
+    const session = sessionFrom(await post("/api/signup", TRYM));
+
+    const response = await post("/api/account/delete", { password: "wrong password" }, session);
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(response.json(), { error: "Wrong password" });
+  });
+
+  it("deletes the account, clears the cookie, and the session stops working", async () => {
+    const session = sessionFrom(await post("/api/signup", TRYM));
+
+    const response = await post("/api/account/delete", { password: TRYM.password }, session);
+
+    assert.equal(response.statusCode, 204);
+    assert.equal(response.cookies.find((c) => c.name === "session")?.value, "");
+    assert.equal((await me(session)).statusCode, 401);
+    assert.equal((await post("/api/login", { email: TRYM.email, password: TRYM.password })).statusCode, 401);
   });
 });

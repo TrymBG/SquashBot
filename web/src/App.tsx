@@ -4,8 +4,11 @@ import { useCurrentUser, useLogout } from './auth.ts'
 import DevLoginSwitcher from './components/DevLoginSwitcher.tsx'
 import HomePage from './pages/HomePage.tsx'
 import LeaderboardPage from './pages/LeaderboardPage.tsx'
+import AccountPage from './pages/AccountPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import PlayerPage from './pages/PlayerPage.tsx'
+import PrivacyPage from './pages/PrivacyPage.tsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.tsx'
 import ResultsPage from './pages/ResultsPage.tsx'
 import SignupPage from './pages/SignupPage.tsx'
 import TournamentPage from './pages/TournamentPage.tsx'
@@ -42,12 +45,24 @@ export default function App() {
           <Route path="/players/:id" element={<PlayerPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
+          <Route path="/reset" element={<ResetPasswordPage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/results" element={<ResultsPage />} />
           <Route path="/tournaments" element={<TournamentsPage />} />
           <Route path="/tournaments/:id" element={<TournamentPage />} />
           <Route path="*" element={<p className="text-muted">Page not found.</p>} />
         </Routes>
       </main>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-5xl gap-4 px-4 py-6 text-sm text-faint">
+          <span>Squash Ladder</span>
+          <Link to="/privacy" className="hover:underline">
+            Privacy
+          </Link>
+        </div>
+      </footer>
     </div>
   )
 }
@@ -90,6 +105,9 @@ function AccountMenu() {
       </Link>
       <Link to={`/players/${currentUser.playerId}`} className="font-semibold hover:underline">
         {currentUser.displayName}
+      </Link>
+      <Link to="/account" className="text-soft hover:underline">
+        Account
       </Link>
       <button
         type="button"

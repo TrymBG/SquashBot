@@ -32,6 +32,9 @@ export function devLoginEnabled(env: Record<string, string | undefined>): boolea
 }
 export const devLogin = devLoginEnabled(process.env);
 
+// The site's public address, e.g. https://squash.example.com (no trailing slash). Used to print full reset links.
+export const siteUrl = (process.env.SITE_URL || "").replace(/\/+$/, "");
+
 // Where `npm run backup` writes database snapshots.
 export const backupDir = process.env.BACKUP_DIR || "backups";
 

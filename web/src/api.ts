@@ -168,6 +168,15 @@ export function logout(): Promise<void> {
   return postJson('/api/logout')
 }
 
+// Sets a new password with a one-time link from the admin; logs you in.
+export async function resetPassword(input: { token: string; password: string }): Promise<User> {
+  return (await postJson<{ user: User }>('/api/reset-password', input)).user
+}
+
+export function deleteAccount(password: string): Promise<void> {
+  return postJson('/api/account/delete', { password })
+}
+
 // A web player you can report a result against (copy of OpponentRow in the backend).
 export interface Opponent {
   id: string

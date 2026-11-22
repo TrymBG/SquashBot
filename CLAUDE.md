@@ -28,7 +28,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - `npm run seed`: fresh `seed.db` with 6 fake players and 120 matches over 90 days (deterministic); the players also get web accounts
   (`seed1@example.com` … `seed6@example.com`, password `password`)
 - Production: `npm run build` (backend `tsc -p tsconfig.build.json` → `dist/`, plus `web/dist`), `npm start` (bot + API + website from `dist/`),
-  `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
+  `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14), `npm run reset-link -- <email>` (one-time password link). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
 - `DATABASE_PATH=seed.db npm run dev`: run the bot on the fake data
 - CI: `.github/workflows/ci.yml` runs the same checks on every PR and push to main (job "Typecheck, test, build"); keep it in sync
   when a check command changes. CD (auto-deploy) comes after the server exists
@@ -37,7 +37,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - TypeScript on Node.js 24 LTS, ES modules, run with `tsx`
 - discord.js v14 (slash commands, guild commands during development)
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
-- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `NODE_ENV=production` (Secure cookies), `WEB_DIST_PATH` (production: `web/dist`, Fastify serves the site), `BACKUP_DIR` (default `backups`)), never committed. Claude never reads `.env`
+- Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `SITE_URL` (full reset links), `NODE_ENV=production` (Secure cookies), `WEB_DIST_PATH` (production: `web/dist`, Fastify serves the site), `BACKUP_DIR` (default `backups`)), never committed. Claude never reads `.env`
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
 - **Colours only through design tokens** (`web/src/index.css` `@theme`: canvas, surface, line, ink, muted, accent, win, loss, …), never Tailwind's
   palette classes (`slate-*`, `sky-*`, …) or hex values in components. Palette: matte neutral charcoal + squash-ball yellow `#e3c13b` (2026-11-20).
@@ -59,7 +59,7 @@ src/
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start, GET /api/me/tournament-matches (my open ones)
     devRoutes.ts        # dev only: GET /api/dev/users, POST /api/dev/login-as (registered only when config.devLogin; 404 otherwise)
-    server.test.ts, authRoutes.test.ts, reportRoutes.test.ts, tournamentRoutes.test.ts
+    server.test.ts, hardening.test.ts (security headers, generic 500s), authRoutes.test.ts, reportRoutes.test.ts, tournamentRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
     index.ts            # the list of all commands (add new ones here)
     ping.ts, result.ts, leaderboard.ts, undo.ts   # stats.ts, h2h.ts are empty placeholders
@@ -68,7 +68,8 @@ src/
     matchService.test.ts
     statsService.ts     # getLeaderboard, getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
     statsService.test.ts
-    authService.ts      # signup (invite code), login, logout, getUserForSession; `now` parameter for testable expiry
+    authService.ts      # signup (invite code), login, logout, getUserForSession, createPasswordReset/resetPassword (+ passwordReset.test.ts); `now` parameter for testable expiry
+    accountService.ts   # deleteAccount: deletes the user, anonymises the player ("Deleted player", players.deleted_at) (+ accountService.test.ts)
     authService.test.ts
     reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
     reportService.test.ts
@@ -83,6 +84,7 @@ src/
   db.test.ts            # reentrant transaction()
   backups.ts            # backupDatabase(dir): VACUUM INTO a dated file, keep the newest 14 (+ backups.test.ts)
   backup.ts             # entry for npm run backup
+  resetLink.ts          # entry for npm run reset-link -- <email>: prints a one-time password reset link (SITE_URL + /reset?token=)
   services/healthService.ts  # checkHealth() for GET /api/health (server answers + DB readable)
 deploy/                 # squash.service (systemd), squash-backup.service/.timer (04:00), Caddyfile (HTTPS), deploy.sh, SERVER_SETUP.md
   testHelpers.ts        # play(): record a bo5 match in one line, for tests
@@ -117,7 +119,7 @@ web/
 - `elo.ts` is pure math with no imports, tested in isolation.
 
 ## Database design
-- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept; optional `tournament_match_id`),
+- Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `password_resets` (`token_hash`, 1 hour, single use; a new link replaces old ones), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept; optional `tournament_match_id`),
   `tournaments` (`type` round_robin | knockout, `match_format`, `ranking` wins | points, `status` draft | active; "finished" is computed),
   `tournament_players` (`seed` for knockout), `tournament_matches` (one row per slot: `round`, `position`, `player_a`/`player_b` nullable = knockout slot not decided yet; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again), `tournaments.third_place`.
 - **Knockout bracket = a function of seeds + results** (like ratings = replay of matches): `buildKnockout` rebuilds every slot; `syncKnockout` writes the changed ones (and cancels a pending report on a slot whose players changed). Played slots never change.
@@ -185,6 +187,8 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Login pages work (W2): sign-up (invite link `/signup?code=...`), login, logout, name in the header.
 - Report results API works (W3): report, confirm/reject/cancel, ratings change only on confirm.
 - Results page works (W4): register a result, confirm/reject/cancel, "Results (n)" badge. The site works end to end locally.
+- Launch prep (2026-11-22): security headers + generic 500s (`server.ts`), privacy page, delete account (anonymise:
+  matches stay so nobody else's rating changes), admin-made reset links (`npm run reset-link`). No email sending.
 - Production setup ready (W5a): build, Fastify serves the site, health check, login/sign-up rate limit (10 per 15 min per IP, separate per route), backups, deploy files.
 - **Production layout (Hetzner, Ubuntu 24.04):** user `squash`, code in `/home/squash/SquashBot`, data + backups in `/home/squash/data`,
   systemd `squash.service` (only `/home/squash/data` writable), Caddy on 443 → `127.0.0.1:3000` (`trustProxy: true`).
