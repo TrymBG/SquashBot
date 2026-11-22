@@ -55,7 +55,7 @@ src/
   api/                  # website API (thin like commands/: call a service, return JSON)
     server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
     routes.ts           # GET /api/health, /api/leaderboard, /api/players/:id, /api/players/:id/matches?limit&before&opponent&format, /api/h2h/:id/:opponentId, /api/matches?limit&before (activity feed) (Fastify schemas validate input)
-    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, /api/reset-password, /api/account/delete (requireLogin), GET /api/me; requireLogin hook + loggedInUser(request)
+    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start, GET /api/me/tournament-matches (my open ones)
     devRoutes.ts        # dev only: GET /api/dev/users, POST /api/dev/login-as (registered only when config.devLogin; 404 otherwise)
@@ -107,7 +107,7 @@ web/
     tournaments.ts      # hooks: useTournaments, useTournament(id), create/add/remove/start mutations, invalidateTournaments()
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
     home.ts             # hooks for the front page: useRecentMatches (feed, infinite), useMyTournamentMatches
-    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), AccountPage (/account: delete), PrivacyPage (/privacy), ResetPasswordPage (/reset?token=), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
+    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
                         # TournamentsPage (/tournaments: list + create form), TournamentPage (/tournaments/:id: draft view / standings + schedule)
     components/         # Panel (card), StatTile, ActivityFeed, LeaderboardWidget, Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
 ```
@@ -171,7 +171,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 269 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 248 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
