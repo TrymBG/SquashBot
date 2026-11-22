@@ -1067,3 +1067,110 @@ export function getRatingTimeline(playerId: string): { matchId: number; playedAt
   `).all(playerId) as { match_id: number; played_at: string; rating_after: number }[];
   return rows.map((row) => ({ matchId: row.match_id, playedAt: row.played_at, rating: row.rating_after }));
 }
+
+// One match as the activity feed shows it: both players, the score, and each player's rating change when rated.
+export interface FeedMatchRow {
+  matchId: number;
+  playedAt: string;
+  format: string;
+  winner: { id: string; displayName: string; avatarUrl: string | null };
+  loser: { id: string; displayName: string; avatarUrl: string | null };
+  winnerGames: number;
+  loserGames: number;
+  ranked: boolean;
+  winnerChange: number | null; // null: not rated (unranked, or a tournament that hasn't finished)
+  loserChange: number | null;
+  tournament: { id: number; name: string } | null;
+}
+
+// Everyone's matches, newest first (by id = confirmation order), with a cursor like getPlayerMatches.
+export function getRecentMatches(filter: { limit?: number | undefined; before?: number | undefined } = {}): FeedMatchRow[] {
+  const rows = db.prepare(`
+    SELECT
+      m.id, m.played_at, m.format, m.winner_games, m.loser_games, m.ranked,
+      w.id AS winner_id, w.display_name AS winner_name, w.avatar_url AS winner_avatar,
+      l.id AS loser_id, l.display_name AS loser_name, l.avatar_url AS loser_avatar,
+      hw.rating_after - hw.rating_before AS winner_change,
+      hl.rating_after - hl.rating_before AS loser_change,
+      t.id AS tournament_id, t.name AS tournament_name
+    FROM matches m
+    JOIN players w ON w.id = m.winner_id
+    JOIN players l ON l.id = m.loser_id
+    LEFT JOIN rating_history hw ON hw.match_id = m.id AND hw.player_id = m.winner_id
+    LEFT JOIN rating_history hl ON hl.match_id = m.id AND hl.player_id = m.loser_id
+    LEFT JOIN tournament_matches tm ON tm.match_id = m.id
+    LEFT JOIN tournaments t ON t.id = tm.tournament_id
+    WHERE (:before IS NULL OR m.id < :before)
+    ORDER BY m.id DESC
+    LIMIT :limit
+  `).all({ before: filter.before ?? null, limit: filter.limit ?? -1 }) as {
+    id: number;
+    played_at: string;
+    format: string;
+    winner_games: number;
+    loser_games: number;
+    ranked: number;
+    winner_id: string;
+    winner_name: string;
+    winner_avatar: string | null;
+    loser_id: string;
+    loser_name: string;
+    loser_avatar: string | null;
+    winner_change: number | null;
+    loser_change: number | null;
+    tournament_id: number | null;
+    tournament_name: string | null;
+  }[];
+
+  return rows.map((row) => ({
+    matchId: row.id,
+    playedAt: row.played_at,
+    format: row.format,
+    winner: { id: row.winner_id, displayName: row.winner_name, avatarUrl: row.winner_avatar },
+    loser: { id: row.loser_id, displayName: row.loser_name, avatarUrl: row.loser_avatar },
+    winnerGames: row.winner_games,
+    loserGames: row.loser_games,
+    ranked: row.ranked === 1,
+    winnerChange: row.winner_change,
+    loserChange: row.loser_change,
+    tournament: row.tournament_id === null ? null : { id: row.tournament_id, name: row.tournament_name! },
+  }));
+}
+
+// A player's tournament matches that are ready to play: active tournament, both players known, not played, nothing waiting.
+export interface OpenTournamentMatchRow {
+  tournamentMatchId: number;
+  tournamentId: number;
+  tournamentName: string;
+  matchFormat: string;
+  opponent: { id: string; displayName: string };
+}
+
+export function getOpenTournamentMatches(playerId: string): OpenTournamentMatchRow[] {
+  const rows = db.prepare(`
+    SELECT tm.id, t.id AS tournament_id, t.name, t.match_format, o.id AS opponent_id, o.display_name AS opponent_name
+    FROM tournament_matches tm
+    JOIN tournaments t ON t.id = tm.tournament_id
+    JOIN players o ON o.id = CASE WHEN tm.player_a = :playerId THEN tm.player_b ELSE tm.player_a END
+    WHERE t.status = 'active'
+      AND tm.match_id IS NULL
+      AND tm.player_a IS NOT NULL AND tm.player_b IS NOT NULL
+      AND (tm.player_a = :playerId OR tm.player_b = :playerId)
+      AND NOT EXISTS (SELECT 1 FROM match_reports r WHERE r.tournament_match_id = tm.id AND r.status = 'pending')
+    ORDER BY t.id, tm.round, tm.position
+  `).all({ playerId }) as {
+    id: number;
+    tournament_id: number;
+    name: string;
+    match_format: string;
+    opponent_id: string;
+    opponent_name: string;
+  }[];
+  return rows.map((row) => ({
+    tournamentMatchId: row.id,
+    tournamentId: row.tournament_id,
+    tournamentName: row.name,
+    matchFormat: row.match_format,
+    opponent: { id: row.opponent_id, displayName: row.opponent_name },
+  }));
+}

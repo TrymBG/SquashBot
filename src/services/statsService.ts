@@ -4,6 +4,8 @@ import {
   getPlayer,
   getPlayerMatches as queryPlayerMatches,
   getRatingTimeline,
+  getRecentMatches as queryRecentMatches,
+  type FeedMatchRow,
   type LeaderboardRow,
   type PlayerMatchRow,
 } from "../db.js";
@@ -35,6 +37,7 @@ export interface PlayerProfile {
   streak: { result: Result; count: number } | null;
   recentForm: Result[]; // newest first
   ratingHistory: { matchId: number; playedAt: string; rating: number }[]; // oldest first, for the chart
+  ratingChangeWeek: number; // rating now minus 7 days ago (0 if nothing changed)
   opponents: OpponentRecord[]; // everyone they've played, most played first (the match-history filter uses it)
 }
 
@@ -50,7 +53,9 @@ export interface OpponentRecord {
 
 // Everything the profile page shows, or undefined if the player doesn't exist.
 // The stats are computed from the player's full match list: a few hundred rows at most at this scale.
-export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function getPlayerProfile(playerId: string, now = new Date()): PlayerProfile | undefined {
   const player = getPlayer(playerId);
   if (!player) {
     return undefined;
@@ -79,6 +84,7 @@ export function getPlayerProfile(playerId: string): PlayerProfile | undefined {
     streak: currentStreak(matches),
     recentForm: matches.slice(0, RECENT_FORM_SIZE).map(toResult),
     ratingHistory: timeline, // rated matches, in rating order (oldest first)
+    ratingChangeWeek: changeSince(timeline, player.rating, now.getTime() - WEEK_MS),
     opponents: opponentRecords(matches),
   };
 }
@@ -102,6 +108,26 @@ function opponentRecords(matches: PlayerMatchRow[]): OpponentRecord[] {
     byOpponent.set(match.opponentId, record);
   }
   return [...byOpponent.values()].sort((a, b) => b.played - a.played || a.displayName.localeCompare(b.displayName));
+}
+
+// Rating change since a moment: current rating minus the rating after the last rated match played before it
+// (the starting rating if every match is newer). 0 when nothing changed since then.
+function changeSince(timeline: { playedAt: string; rating: number }[], current: number, since: number): number {
+  if (timeline.length === 0) return 0;
+  const before = timeline.filter((point) => new Date(point.playedAt).getTime() <= since).at(-1);
+  return current - (before ? before.rating : STARTING_RATING);
+}
+
+export interface FeedPage {
+  matches: FeedMatchRow[];
+  nextBefore: number | null; // pass as `before` to get the next (older) page, null on the last page
+}
+
+// The activity feed: everyone's matches, newest first, one page at a time (same cursor idea as a player's matches).
+export function getRecentMatches(query: { limit: number; before?: number | undefined }): FeedPage {
+  const matches = queryRecentMatches(query);
+  const last = matches.at(-1);
+  return { matches, nextBefore: matches.length === query.limit && last ? last.matchId : null };
 }
 
 export interface MatchPage {

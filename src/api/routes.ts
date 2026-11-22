@@ -4,7 +4,7 @@
 import type { FastifyInstance } from "fastify";
 import { MATCH_FORMATS } from "../formats.js";
 import { checkHealth } from "../services/healthService.js";
-import { getHeadToHead, getLeaderboard, getPlayerMatches, getPlayerProfile } from "../services/statsService.js";
+import { getHeadToHead, getLeaderboard, getPlayerMatches, getPlayerProfile, getRecentMatches } from "../services/statsService.js";
 
 // Discord ids (up to 20 digits) or web players' UUIDs (36 characters).
 const playerId = { type: "string", minLength: 1, maxLength: 64 } as const;
@@ -25,6 +25,14 @@ const matchesQuery = {
   },
 } as const;
 
+const feedQuery = {
+  type: "object",
+  properties: {
+    limit: { type: "integer", minimum: 1, maximum: 100, default: 20 },
+    before: { type: "integer", minimum: 1 },
+  },
+} as const;
+
 const headToHeadParams = {
   type: "object",
   properties: { id: playerId, opponentId: playerId },
@@ -37,6 +45,13 @@ export async function apiRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/health", async () => checkHealth());
 
   app.get("/api/leaderboard", async () => getLeaderboard());
+
+  // The front page's activity feed: everyone's matches, newest first, paged with ?before.
+  app.get<{ Querystring: { limit: number; before?: number } }>(
+    "/api/matches",
+    { schema: { querystring: feedQuery } },
+    async (request) => getRecentMatches({ limit: request.query.limit, before: request.query.before }),
+  );
 
   app.get<{ Params: { id: string } }>("/api/players/:id", { schema: { params: playerParams } }, async (request, reply) => {
     const profile = getPlayerProfile(request.params.id);

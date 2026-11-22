@@ -8,6 +8,7 @@ import {
   createTournament,
   getTournamentDetails,
   listTournaments,
+  openMatchesFor,
   removePlayer,
   startTournament,
   type ChangeResult,
@@ -78,6 +79,9 @@ export async function tournamentPublicRoutes(app: FastifyInstance): Promise<void
 export async function tournamentRoutes(app: FastifyInstance): Promise<void> {
   app.decorateRequest("user", null);
   app.addHook("onRequest", requireLogin);
+
+  // The front page's "Your tournament matches": the ones you can play now.
+  app.get("/api/me/tournament-matches", async (request) => openMatchesFor(loggedInUser(request).playerId));
 
   app.post<{
     Body: {

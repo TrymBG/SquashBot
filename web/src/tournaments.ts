@@ -11,10 +11,12 @@ import {
 } from './api.ts'
 
 // ['tournament'] matches every ['tournament', id] key too (TanStack compares key prefixes).
+// The front page's "Your tournament matches" changes with them (a reported match drops off the list).
 export function invalidateTournaments(queryClient: QueryClient) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: ['tournaments'] }),
     queryClient.invalidateQueries({ queryKey: ['tournament'] }),
+    queryClient.invalidateQueries({ queryKey: ['myTournamentMatches'] }),
   ])
 }
 

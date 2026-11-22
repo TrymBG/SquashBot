@@ -9,6 +9,7 @@
 import {
   addTournamentPlayer,
   getActiveKnockoutIds,
+  getOpenTournamentMatches,
   getPlayer,
   getTournament,
   getTournamentMatch,
@@ -26,6 +27,7 @@ import {
   setTournamentMatchPlayers,
   setTournamentSeed,
   transaction,
+  type OpenTournamentMatchRow,
   type TournamentMatchRow,
   type TournamentPlayerRow,
   type TournamentRanking,
@@ -339,6 +341,12 @@ function podium(matches: TournamentMatchView[], lastRound: number, thirdPlace: b
     ? [winner(at(lastRound, 1))]
     : [loser(at(lastRound - 1, 0)), loser(at(lastRound - 1, 1))];
   return { first: winner(final), second: loser(final), third: third.filter((p) => p !== null) };
+}
+
+// My tournament matches that are ready to play now (active tournament, both players known, not played, no report waiting),
+// for the front page's "Your tournament matches".
+export function openMatchesFor(playerId: string): OpenTournamentMatchRow[] {
+  return getOpenTournamentMatches(playerId);
 }
 
 // Newest first, with player count and progress (for the tournament list page).
