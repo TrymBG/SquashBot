@@ -30,6 +30,8 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - Production: `npm run build` (backend `tsc -p tsconfig.build.json` → `dist/`, plus `web/dist`), `npm start` (bot + API + website from `dist/`),
   `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
 - `DATABASE_PATH=seed.db npm run dev`: run the bot on the fake data
+- CI: `.github/workflows/ci.yml` runs the same checks on every PR and push to main (job "Typecheck, test, build"); keep it in sync
+  when a check command changes. CD (auto-deploy) comes after the server exists
 
 ## Tech stack
 - TypeScript on Node.js 24 LTS, ES modules, run with `tsx`
