@@ -9,7 +9,7 @@ export default function Avatar({ name, url, size = 'sm' }: { name: string; url: 
     return <img src={url} alt="" className={`${SIZES[size]} rounded-full`} />
   }
   return (
-    <div className={`flex ${SIZES[size]} shrink-0 items-center justify-center rounded-full bg-line-strong font-semibold`}>
+    <div className={`flex ${SIZES[size]} shrink-0 items-center justify-center rounded-full bg-line-strong font-semibold text-ink`}>
       {name.charAt(0).toUpperCase()}
     </div>
   )

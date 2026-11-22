@@ -55,7 +55,7 @@ function Plate({ player, position, mine, full }: { player: LeaderboardRow; posit
 
 // ▲2 / ▼1 / New / nothing. The arrow and the number carry the meaning; the colour only repeats it.
 function Movement({ change, onAccent }: { change: number | null; onAccent: boolean }) {
-  const box = 'w-9 text-right text-xs font-semibold'
+  const box = 'w-10 text-right text-sm font-semibold'
   if (change === null) {
     return <span className={`${box} ${onAccent ? 'text-on-accent/70' : 'text-accent'}`}>New</span>
   }

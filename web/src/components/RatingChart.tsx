@@ -36,7 +36,7 @@ export default function RatingChart({ history }: { history: PlayerProfile['ratin
             tickFormatter={(value: number) => formatRating(value)}
             stroke={colors.axis}
             tickLine={false}
-            width={44}
+            width={52} // room for "1068" in Saira, whose digits are a little wider than the old system font
           />
           <ReferenceLine y={STARTING_RATING} stroke={colors.start} strokeDasharray="4 4" />
           <Tooltip
