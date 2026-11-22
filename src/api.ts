@@ -5,5 +5,5 @@ import { openDatabase } from "./db.js";
 import { buildServer } from "./api/server.js";
 
 openDatabase(databasePath);
-const address = await buildServer().listen({ port });
+const address = await buildServer().listen({ port, host: "localhost" }); // localhost only: Caddy is the way in
 console.log(`API listening on ${address}`);

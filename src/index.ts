@@ -38,5 +38,5 @@ client.on(Events.InteractionCreate, async (interaction) => {
 openDatabase(databasePath);
 client.login(config.token);
 
-const address = await buildServer().listen({ port });
+const address = await buildServer().listen({ port, host: "localhost" }); // localhost only: Caddy is the way in
 console.log(`API listening on ${address}`);
