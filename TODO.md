@@ -108,7 +108,20 @@ Each milestone planned in plan mode.
   - [x] Step 1: design tokens in `index.css` + matte charcoal palette, squash-ball yellow accent
   - [ ] Step 2: front page = your dashboard (rating + change this week, results waiting for you, your tournament matches) + activity feed,
     compact leaderboard on the right; full leaderboard at `/leaderboard`. Code done and checked; tick after the browser check
-  - [ ] Next steps (decide together): fonts/type scale, panels on the other pages (profile header, tournament cards), logo
+  - [ ] Step 3 (2026-11-22, code done; tick after the browser review): Saira (self-hosted, width axis) + type roles
+    (`type-title/heading/figure/hero`), sentence-case headings, no "·" meta strings / "→" links / 🏆 emoji (Meta, FormatTag,
+    TrophyIcon), yellow focus ring, NavLink active state, phone header (nav row + account menu), ball logo + favicon
+  - [ ] Step 4 (same branch): the ladder: leaderboard as name plates on two rails, your plate yellow, movement since last
+    week (`rankChange` on `/api/leaderboard`, `getRatingsBefore`; `ladder.test.ts`)
+  - [ ] Next: profile header and tournament pages in the new style
+- [x] Launch hardening (2026-11-22): security headers on every response (nosniff, frame DENY, referrer policy, noindex,
+  HSTS in production), 500s never show internal errors (logged instead, logger at `warn`: no IPs stored),
+  explicit `localhost` listen, `robots.txt`
+- [ ] Accounts before inviting (2026-11-22, code done and checked with curl; tick after the browser check):
+  - privacy page `/privacy` (footer + sign-up link)
+  - delete my account (`/account`): account deleted, player anonymised as "Deleted player", hidden from the leaderboard
+  - forgot password: `npm run reset-link -- email` prints a one-time link (1 hour), `/reset?token=` page
+- [ ] Before going live: tell the Discord group their names and avatars will be on the website
 - [ ] Invite friends (after W5b hosting)
 
 ## Project setup

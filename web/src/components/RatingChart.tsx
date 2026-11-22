@@ -45,7 +45,7 @@ export default function RatingChart({ history }: { history: PlayerProfile['ratin
             labelFormatter={(_label, payload) => {
               const point = payload[0]?.payload as ChartPoint | undefined
               if (!point) return ''
-              return point.playedAt ? `Match ${point.match} · ${formatDate(point.playedAt)}` : 'Start'
+              return point.playedAt ? `Match ${point.match}, ${formatDate(point.playedAt)}` : 'Start'
             }}
             formatter={(value) => [formatRating(Number(value)), 'Rating']}
           />

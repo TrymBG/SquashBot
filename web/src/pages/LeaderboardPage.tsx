@@ -1,55 +1,31 @@
-// The front page: everyone with at least one match, highest rating first.
+// /leaderboard: the whole ladder, best rating at the top, with the movement since last week.
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { fetchLeaderboard } from '../api.ts'
-import Avatar from '../components/Avatar.tsx'
+import { useCurrentUser } from '../auth.ts'
+import Ladder from '../components/Ladder.tsx'
 
 export default function LeaderboardPage() {
   // TanStack Query runs fetchLeaderboard, caches the result under this key, and re-renders on loading/success/error.
-  const { data: players, isPending, isError } = useQuery({
-    queryKey: ['leaderboard'],
-    queryFn: fetchLeaderboard,
-  })
-
-  if (isPending) return <p className="text-muted">Loading…</p>
-  if (isError) return <p className="text-loss">Could not load the leaderboard. Is the API running?</p>
-  if (players.length === 0) return <p className="text-muted">No matches yet. Use /result in Discord to log one!</p>
+  const { data: players, isPending, isError } = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
+  const me = useCurrentUser()?.playerId
 
   return (
-    <section>
-      <h1 className="mb-4 text-2xl font-bold">Leaderboard</h1>
-      <table className="w-full text-left">
-        <thead className="text-sm text-muted">
-          <tr>
-            <th className="w-12 py-2">#</th>
-            <th className="py-2">Player</th>
-            <th className="py-2 text-right">Rating</th>
-            <th className="py-2 text-right">W–L</th>
-            <th className="py-2 text-right">Win %</th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.map((player, index) => {
-            const played = player.wins + player.losses
-            return (
-              <tr key={player.id} className="border-t border-line">
-                <td className="py-3 text-muted">{index + 1}</td>
-                <td className="py-3">
-                  <Link to={`/players/${player.id}`} className="flex items-center gap-3 hover:underline">
-                    <Avatar name={player.displayName} url={player.avatarUrl} />
-                    {player.displayName}
-                  </Link>
-                </td>
-                <td className="py-3 text-right font-semibold tabular-nums">{Math.round(player.rating)}</td>
-                <td className="py-3 text-right tabular-nums">
-                  {player.wins}–{player.losses}
-                </td>
-                <td className="py-3 text-right tabular-nums">{Math.round((player.wins / played) * 100)}%</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <section className="mx-auto max-w-2xl">
+      <h1 className="type-title">Leaderboard</h1>
+      <p className="mt-1 mb-6 text-muted">Ranked by rating. Arrows show places gained or lost since last week.</p>
+      {isPending && <p className="text-muted">Loading…</p>}
+      {isError && <p className="text-loss">Could not load the leaderboard. Reload the page to try again.</p>}
+      {players?.length === 0 && (
+        <p className="text-muted">
+          Nobody is on the ladder yet.{' '}
+          <Link to="/results" className="text-accent hover:underline">
+            Register a result
+          </Link>{' '}
+          to get on it.
+        </p>
+      )}
+      {players && players.length > 0 && <Ladder players={players} me={me} full />}
     </section>
   )
 }

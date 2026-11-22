@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router'
+import '@fontsource-variable/saira/wdth.css' // weight 100–900 and width 50–125%
 import './index.css'
 import App from './App.tsx'
 import { isNotFound } from './api.ts'

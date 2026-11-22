@@ -16,7 +16,7 @@ export default function ResultsPage() {
   return (
     <div className="space-y-10">
       <section>
-        <h1 className="mb-4 text-2xl font-bold">Register a result</h1>
+        <h1 className="mb-4 type-title">Register a result</h1>
         <ReportForm />
       </section>
 
@@ -34,7 +34,7 @@ export default function ResultsPage() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
+      <h2 className="mb-2 type-heading">{title}</h2>
       {children}
     </section>
   )

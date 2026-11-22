@@ -21,7 +21,7 @@ export default function LoginPage() {
 
   return (
     <section className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Log in</h1>
+      <h1 className="mb-6 type-title">Log in</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <TextField label="Email" type="email" autoComplete="email" required value={email} onValueChange={setEmail} />
         <TextField

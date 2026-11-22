@@ -39,6 +39,9 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - SQLite via the built-in `node:sqlite` (`DatabaseSync`, synchronous)
 - Config/secrets in `.env` (`DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, optional `DATABASE_PATH`, `PORT` (default 3000), `INVITE_CODE` (unset = website sign-up closed), `SITE_URL` (full reset links), `NODE_ENV=production` (Secure cookies), `WEB_DIST_PATH` (production: `web/dist`, Fastify serves the site), `BACKUP_DIR` (default `backups`)), never committed. Claude never reads `.env`
 - Website: Fastify v5 API in the same process as the bot. Frontend in `web/` (own `package.json`): Vite 8, React 19, React Router 8 (declarative `<Routes>`), TanStack Query 5 (`useInfiniteQuery` for "Load more"), Tailwind 4, Recharts 3
+- **Type:** Saira Variable, self-hosted via `@fontsource-variable/saira` (no Google request: privacy page promises no third
+  parties). Type roles are utilities in `index.css`: `type-title`, `type-heading`, `type-figure` (numbers), `type-hero`.
+  Sentence case, no all-caps labels, no "A · B" meta strings (use `Meta`), no "→" on links, no emoji as icons (`TrophyIcon`).
 - **Colours only through design tokens** (`web/src/index.css` `@theme`: canvas, surface, line, ink, muted, accent, win, loss, …), never Tailwind's
   palette classes (`slate-*`, `sky-*`, …) or hex values in components. Palette: matte neutral charcoal + squash-ball yellow `#e3c13b` (2026-11-20).
 - Frontend style follows the Vite starter (single quotes, no semicolons). API response types are copied into `web/src/api.ts` (the backend imports node:sqlite, so it can't be imported in the browser); keep them in sync
@@ -55,7 +58,7 @@ src/
   api/                  # website API (thin like commands/: call a service, return JSON)
     server.ts           # buildServer(authOptions?): Fastify app + cookie plugin, not listening (tests use inject and pass their own invite code)
     routes.ts           # GET /api/health, /api/leaderboard, /api/players/:id, /api/players/:id/matches?limit&before&opponent&format, /api/h2h/:id/:opponentId, /api/matches?limit&before (activity feed) (Fastify schemas validate input)
-    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, GET /api/me; requireLogin hook + loggedInUser(request)
+    authRoutes.ts       # POST /api/signup, /api/login, /api/logout, /api/reset-password, /api/account/delete (requireLogin), GET /api/me; requireLogin hook + loggedInUser(request)
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start, GET /api/me/tournament-matches (my open ones)
     devRoutes.ts        # dev only: GET /api/dev/users, POST /api/dev/login-as (registered only when config.devLogin; 404 otherwise)
@@ -66,7 +69,7 @@ src/
   services/             # business logic, shared by bot and later the API
     matchService.ts     # recordMatch, undoMatch, canUndo
     matchService.test.ts
-    statsService.ts     # getLeaderboard, getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
+    statsService.ts     # getLeaderboard (+ rankChange since 7 days ago, ladder.test.ts), getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
     statsService.test.ts
     authService.ts      # signup (invite code), login, logout, getUserForSession, createPasswordReset/resetPassword (+ passwordReset.test.ts); `now` parameter for testable expiry
     accountService.ts   # deleteAccount: deletes the user, anonymises the player ("Deleted player", players.deleted_at) (+ accountService.test.ts)
@@ -107,9 +110,9 @@ web/
     tournaments.ts      # hooks: useTournaments, useTournament(id), create/add/remove/start mutations, invalidateTournaments()
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
     home.ts             # hooks for the front page: useRecentMatches (feed, infinite), useMyTournamentMatches
-    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
+    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), AccountPage (/account: delete), PrivacyPage (/privacy), ResetPasswordPage (/reset?token=), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
                         # TournamentsPage (/tournaments: list + create form), TournamentPage (/tournaments/:id: draft view / standings + schedule)
-    components/         # Panel (card), StatTile, ActivityFeed, LeaderboardWidget, Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
+    components/         # Ladder (leaderboard as name plates, movement ▲▼), Logo, TrophyIcon, Meta, FormatTag, Panel (card, used sparingly), StatTile, ActivityFeed, LeaderboardWidget, Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -171,7 +174,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 248 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 272 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.

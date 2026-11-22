@@ -1,10 +1,14 @@
 // The front page's feed: everyone's latest matches, newest first, 20 at a time with "Load more".
-// Each row: "Nora beat Jonas 3–1", the format, the winner's rating change (or Unranked / Pending), the tournament, and when.
+// Each row: "Nora beat Jonas 3–1" with the score in scoreboard type, then the format tag, the tournament and the winner's
+// rating change (or Unranked / Pending); how long ago sits on the right.
 import { Link } from 'react-router'
 import type { FeedMatch } from '../api.ts'
-import { formatMatchFormat, formatTimeAgo } from '../format.ts'
+import { formatTimeAgo } from '../format.ts'
 import { useRecentMatches } from '../home.ts'
 import Avatar from './Avatar.tsx'
+import FormatTag from './FormatTag.tsx'
+import Meta from './Meta.tsx'
+import TrophyIcon from './TrophyIcon.tsx'
 
 export default function ActivityFeed() {
   const { data, isPending, isError, hasNextPage, fetchNextPage, isFetchingNextPage } = useRecentMatches()
@@ -43,25 +47,22 @@ function FeedRow({ match }: { match: FeedMatch }) {
       <div className="min-w-0 flex-1">
         <p className="truncate">
           <PlayerLink player={match.winner} /> <span className="text-muted">beat</span> <PlayerLink player={match.loser} />{' '}
-          <span className="font-semibold">
+          <span className="type-figure text-lg">
             {match.winnerGames}–{match.loserGames}
           </span>
         </p>
-        <p className="truncate text-sm text-muted">
-          {formatMatchFormat(match.format)}
+        <Meta>
+          <FormatTag format={match.format} />
           {match.tournament && (
-            <>
-              {' · '}
-              <Link to={`/tournaments/${match.tournament.id}`} className="text-accent hover:underline">
-                🏆 {match.tournament.name}
-              </Link>
-            </>
+            <Link to={`/tournaments/${match.tournament.id}`} className="inline-flex items-center gap-1 text-accent hover:underline">
+              <TrophyIcon />
+              {match.tournament.name}
+            </Link>
           )}
-          {' · '}
-          {formatTimeAgo(match.playedAt)}
-        </p>
+          <WinnerChange match={match} />
+        </Meta>
       </div>
-      <WinnerChange match={match} />
+      <span className="self-start pt-1 text-sm whitespace-nowrap text-faint">{formatTimeAgo(match.playedAt)}</span>
     </li>
   )
 }
@@ -77,7 +78,7 @@ function PlayerLink({ player }: { player: FeedMatch['winner'] }) {
 // The winner's gain ("+14"), or why there is none.
 function WinnerChange({ match }: { match: FeedMatch }) {
   if (match.winnerChange !== null) {
-    return <span className="text-sm font-semibold text-win">+{Math.round(match.winnerChange)}</span>
+    return <span className="font-semibold text-win tabular-nums">+{Math.round(match.winnerChange)} rating</span>
   }
-  return <span className="text-xs text-faint">{match.ranked ? 'Pending' : 'Unranked'}</span>
+  return <span className="text-faint">{match.ranked ? 'Rating pending' : 'Unranked'}</span>
 }

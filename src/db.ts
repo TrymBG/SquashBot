@@ -414,6 +414,25 @@ export interface LeaderboardRow {
   losses: number;
 }
 
+// Every player's rating at a moment in the past: the rating after their last rated match played before `before`
+// (latest by rating_order). Players with no rated match before then are left out: they weren't on the leaderboard.
+// Highest rating first, so the index is the leaderboard position back then. Deleted players are left out, like now.
+export function getRatingsBefore(before: string): { playerId: string; rating: number }[] {
+  const rows = db.prepare(`
+    SELECT player_id, rating_after FROM (
+      SELECT rh.player_id, rh.rating_after,
+             ROW_NUMBER() OVER (PARTITION BY rh.player_id ORDER BY m.rating_order DESC) AS newest
+      FROM rating_history rh
+      JOIN matches m ON m.id = rh.match_id
+      JOIN players p ON p.id = rh.player_id
+      WHERE m.played_at < ? AND m.rating_order IS NOT NULL AND p.deleted_at IS NULL
+    )
+    WHERE newest = 1
+    ORDER BY rating_after DESC
+  `).all(before) as { player_id: string; rating_after: number }[];
+  return rows.map((row) => ({ playerId: row.player_id, rating: row.rating_after }));
+}
+
 // Players with at least one match, highest rating first. The default -1 means no limit (SQLite treats a negative LIMIT that way).
 export function getLeaderboard(limit = -1): LeaderboardRow[] {
   const rows = db.prepare(`

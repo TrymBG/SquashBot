@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
   if (!token) {
     return (
       <section className="mx-auto max-w-sm">
-        <h1 className="mb-4 text-2xl font-bold">Reset password</h1>
+        <h1 className="mb-4 type-title">Reset password</h1>
         <p className="text-muted">
           This page needs a reset link. Ask the admin for one, or{' '}
           <Link to="/login" className="text-accent hover:underline">
@@ -39,7 +39,7 @@ export default function ResetPasswordPage() {
 
   return (
     <section className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Choose a new password</h1>
+      <h1 className="mb-6 type-title">Choose a new password</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <TextField
           label="New password (at least 8 characters)"

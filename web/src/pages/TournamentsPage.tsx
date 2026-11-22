@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import type { TournamentRanking } from '../api.ts'
 import { useCurrentUser } from '../auth.ts'
+import Meta from '../components/Meta.tsx'
 import TextField from '../components/TextField.tsx'
 import { describeTournament, statusText } from '../format.ts'
 import { findFormat, FORMATS } from '../formats.ts'
@@ -16,13 +17,13 @@ export default function TournamentsPage() {
     <div className="space-y-10">
       {currentUser && (
         <section>
-          <h1 className="mb-4 text-2xl font-bold">New tournament</h1>
+          <h1 className="mb-4 type-title">New tournament</h1>
           <CreateTournamentForm />
         </section>
       )}
 
       <section>
-        <h2 className="mb-3 text-2xl font-bold">Tournaments</h2>
+        <h2 className="mb-3 type-title">Tournaments</h2>
         {tournaments.isPending && <p className="text-muted">Loading…</p>}
         {tournaments.isError && <p className="text-loss">Could not load the tournaments.</p>}
         {tournaments.data?.length === 0 && <p className="text-muted">No tournaments yet.</p>}
@@ -32,9 +33,12 @@ export default function TournamentsPage() {
               <Link to={`/tournaments/${t.id}`} className="font-semibold hover:underline">
                 {t.name}
               </Link>
-              <p className="text-sm text-muted">
-                {describeTournament(t)} · by {t.organizerName} · {t.playerCount} players · {statusText(t)}
-              </p>
+              <Meta>
+                {describeTournament(t)}
+                <span>Organised by {t.organizerName}</span>
+                <span>{t.playerCount} players</span>
+                <span className="text-soft">{statusText(t)}</span>
+              </Meta>
             </li>
           ))}
         </ul>

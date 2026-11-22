@@ -3,6 +3,7 @@ import {
   getLeaderboard as queryLeaderboard,
   getPlayer,
   getPlayerMatches as queryPlayerMatches,
+  getRatingsBefore,
   getRatingTimeline,
   getRecentMatches as queryRecentMatches,
   type FeedMatchRow,
@@ -11,14 +12,28 @@ import {
 } from "../db.js";
 import { STARTING_RATING } from "../elo.js";
 
-export type { LeaderboardRow, PlayerMatchRow };
+export type { PlayerMatchRow };
+
+// A leaderboard row plus the movement on the ladder: places gained (+) or lost (−) since 7 days ago,
+// or null if the player wasn't on the leaderboard then (new this week).
+export interface LeaderboardEntry extends LeaderboardRow {
+  rankChange: number | null;
+}
 
 const LEADERBOARD_SIZE = 20;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const RECENT_FORM_SIZE = 5;
 const HEAD_TO_HEAD_RECENT_SIZE = 5;
 
-export function getLeaderboard(): LeaderboardRow[] {
-  return queryLeaderboard(LEADERBOARD_SIZE);
+// `now` is a parameter so tests can control "a week ago", like getPlayerProfile.
+// The ratings a week ago use played_at, the same as ratingChangeWeek.
+export function getLeaderboard(now = new Date()): LeaderboardEntry[] {
+  const weekAgo = new Date(now.getTime() - WEEK_MS).toISOString();
+  const previousPosition = new Map(getRatingsBefore(weekAgo).map((row, index) => [row.playerId, index + 1]));
+  return queryLeaderboard(LEADERBOARD_SIZE).map((row, index) => {
+    const before = previousPosition.get(row.id);
+    return { ...row, rankChange: before === undefined ? null : before - (index + 1) };
+  });
 }
 
 export type Result = "W" | "L";
@@ -53,7 +68,6 @@ export interface OpponentRecord {
 
 // Everything the profile page shows, or undefined if the player doesn't exist.
 // The stats are computed from the player's full match list: a few hundred rows at most at this scale.
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function getPlayerProfile(playerId: string, now = new Date()): PlayerProfile | undefined {
   const player = getPlayer(playerId);

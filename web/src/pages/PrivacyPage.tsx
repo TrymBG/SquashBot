@@ -7,7 +7,7 @@ export default function PrivacyPage() {
   return (
     <section className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Privacy</h1>
+        <h1 className="type-title">Privacy</h1>
         <p className="mt-1 text-muted">A hobby site for one group of squash friends. No ads, no tracking, nothing sold.</p>
       </div>
       <Panel>

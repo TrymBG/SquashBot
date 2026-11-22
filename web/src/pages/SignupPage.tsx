@@ -25,7 +25,7 @@ export default function SignupPage() {
 
   return (
     <section className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Sign up</h1>
+      <h1 className="mb-6 type-title">Sign up</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <TextField
           label="Name (shown on the leaderboard)"
