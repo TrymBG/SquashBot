@@ -78,7 +78,11 @@ function PlayerLink({ player }: { player: FeedMatch['winner'] }) {
 // The winner's gain ("+14"), or why there is none.
 function WinnerChange({ match }: { match: FeedMatch }) {
   if (match.winnerChange !== null) {
-    return <span className="font-semibold text-win tabular-nums">+{Math.round(match.winnerChange)} rating</span>
+    return (
+      <span>
+        <span className="font-semibold text-win tabular-nums">+{Math.round(match.winnerChange)}</span> rating
+      </span>
+    )
   }
   return <span className="text-faint">{match.ranked ? 'Rating pending' : 'Unranked'}</span>
 }

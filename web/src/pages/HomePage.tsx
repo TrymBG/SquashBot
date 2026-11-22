@@ -1,6 +1,6 @@
 // The front page. Logged in: your dashboard (rating, results waiting for you, your tournament matches) and the
 // activity feed. Logged out: a short intro and the feed. The top of the ladder sits in the right column on wide
-// screens and below everything on phones. The dashboard is the hero: no card around it, your rating in big type.
+// screens and right after the dashboard on phones. The dashboard is the hero: no card around it, your rating in big type.
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { fetchPlayerProfile, type User } from '../api.ts'
@@ -19,17 +19,17 @@ export default function HomePage() {
   const currentUser = useCurrentUser()
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="space-y-10">
-        {currentUser ? <Dashboard user={currentUser} /> : currentUser === null ? <LoggedOut /> : null}
-        <section>
-          <h2 className="type-heading mb-2">Latest matches</h2>
-          <ActivityFeed />
-        </section>
-      </div>
-      <aside>
+    // Order in the page = order on a phone: dashboard, ladder, feed (the ladder shouldn't sit under 20 matches).
+    // On wide screens the grid puts the ladder in the right column, next to both (row-span-2), at the top.
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:grid-rows-[auto_1fr]">
+      <div>{currentUser ? <Dashboard user={currentUser} /> : currentUser === null ? <LoggedOut /> : null}</div>
+      <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <LeaderboardWidget />
       </aside>
+      <section>
+        <h2 className="type-heading mb-2">Latest matches</h2>
+        <ActivityFeed />
+      </section>
     </div>
   )
 }
