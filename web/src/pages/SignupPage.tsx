@@ -57,6 +57,11 @@ export default function SignupPage() {
         </button>
       </form>
       <p className="mt-6 text-sm text-muted">
+        <Link to="/privacy" className="text-accent hover:underline">
+          How your data is used
+        </Link>
+      </p>
+      <p className="mt-2 text-sm text-muted">
         Already have an account?{' '}
         <Link to="/login" className="text-accent hover:underline">
           Log in

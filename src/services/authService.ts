@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import {
   deleteExpiredSessions,
   deleteSession,
+  deleteSessionsForUser,
+  getPasswordReset,
   getAllUsers,
   getSession,
   getUserByEmail,
@@ -11,7 +13,10 @@ import {
   getUserByPlayerId,
   insertSession,
   insertUser,
+  markPasswordResetUsed,
+  replacePasswordReset,
   transaction,
+  updatePasswordHash,
   upsertPlayer,
   type UserRow,
 } from "../db.js";
@@ -19,6 +24,7 @@ import { STARTING_RATING } from "../elo.js";
 import { hashPassword, hashToken, newSessionToken, safeEqual, verifyPassword } from "../passwords.js";
 
 export const SESSION_DAYS = 30;
+export const RESET_LINK_MINUTES = 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // What the rest of the app may see about a user. No password hash.
@@ -95,6 +101,46 @@ export function listAccounts(): PublicUser[] {
 export function devLoginAs(playerId: string, now = new Date()): { user: PublicUser; sessionToken: string } | undefined {
   const user = getUserByPlayerId(playerId);
   return user && { user: toPublicUser(user), sessionToken: createSession(user.id, now) };
+}
+
+export type ResetResult = { ok: true; user: PublicUser; sessionToken: string } | { ok: false };
+
+// Makes a one-time reset link token for the account with this email (the admin runs this, see resetLink.ts),
+// or undefined if no account has that email. Works like a session token: random, only its hash is stored.
+// Valid for RESET_LINK_MINUTES and only once; a new link replaces the user's older ones.
+export function createPasswordReset(email: string, now = new Date()): string | undefined {
+  const user = getUserByEmail(normalizeEmail(email));
+  if (!user) {
+    return undefined;
+  }
+  const token = newSessionToken();
+  const expiresAt = new Date(now.getTime() + RESET_LINK_MINUTES * 60 * 1000).toISOString();
+  replacePasswordReset(hashToken(token), user.id, expiresAt);
+  return token;
+}
+
+// Sets a new password with a reset link token. Logs the user out everywhere (an attacker who knew the old password
+// loses their session too) and logs them in here with a new session.
+export async function resetPassword(token: string, newPassword: string, now = new Date()): Promise<ResetResult> {
+  const tokenHash = hashToken(token);
+  const reset = getPasswordReset(tokenHash);
+  if (!reset || reset.usedAt !== null || reset.expiresAt <= now.toISOString()) {
+    return { ok: false };
+  }
+  // Hash before the transaction: transaction() is synchronous, so nothing inside it may be awaited.
+  const passwordHash = await hashPassword(newPassword);
+
+  return transaction((): ResetResult => {
+    // Marking it used is the real check: only one request can flip used_at from NULL, so a link works only once
+    // even if two requests arrive at the same time.
+    if (!markPasswordResetUsed(tokenHash, now.toISOString())) {
+      return { ok: false };
+    }
+    updatePasswordHash(reset.userId, passwordHash);
+    deleteSessionsForUser(reset.userId);
+    const user = getUserById(reset.userId)!; // the reset row cascades with the user, so the user exists
+    return { ok: true, user: toPublicUser(user), sessionToken: createSession(user.id, now) };
+  });
 }
 
 export function logout(sessionToken: string): void {

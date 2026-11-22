@@ -14,6 +14,7 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "start:api": "node --env-file-if-exists=.env dist/api.js",
     "backup": "node --env-file-if-exists=.env dist/backup.js",
+    "reset-link": "node --env-file-if-exists=.env dist/resetLink.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\""
   },

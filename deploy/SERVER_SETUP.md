@@ -63,6 +63,7 @@ DISCORD_TOKEN=...
 CLIENT_ID=...
 GUILD_ID=...
 INVITE_CODE=pick-a-code-for-friends
+SITE_URL=https://SERVER-IP-WITH-DASHES.sslip.io
 NODE_ENV=production
 WEB_DIST_PATH=web/dist
 DATABASE_PATH=/home/squash/data/squash.db
@@ -125,9 +126,18 @@ ssh root@SERVER_IP
 su - squash -c '~/SquashBot/deploy/deploy.sh'      # quotes: ~ must mean squash's home, not root's
 ```
 
+## Someone forgot their password
+There's no email sending, so you make a one-time link and send it to them (works once, for 1 hour):
+```bash
+ssh root@SERVER_IP
+su - squash -c 'cd ~/SquashBot && npm run -s reset-link -- friend@example.com'
+```
+They open the link, choose a new password, and are logged out on every other device.
+
 ## Later: your own domain
 Buy the domain, add an **A record** pointing at `SERVER_IP`, put the domain in `/etc/caddy/Caddyfile` instead of the
-sslip.io name, `systemctl reload caddy`. Logins are tied to the address, so everyone logs in once more.
+sslip.io name, `systemctl reload caddy`, and change `SITE_URL` in `.env` (then `systemctl restart squash`).
+Logins are tied to the address, so everyone logs in once more.
 
 ## Useful commands
 | What | Command |

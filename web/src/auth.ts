@@ -2,7 +2,7 @@
 // query cache, a bit like a small service class. No React Context needed: every component that calls
 // useCurrentUser() reads the same cached answer under the key ['me'], and the mutations below update that entry.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { devLoginAs, fetchDevUsers, fetchMe, login, logout, signup, type User } from './api.ts'
+import { deleteAccount, devLoginAs, fetchDevUsers, fetchMe, login, logout, resetPassword, signup, type User } from './api.ts'
 
 const ME = ['me']
 
@@ -35,6 +35,27 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => queryClient.setQueryData(ME, null),
+  })
+}
+
+export function useResetPassword() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: resetPassword,
+    onSuccess: (user) => queryClient.setQueryData(ME, user),
+  })
+}
+
+// After deleting the account: logged out, and every cached view refetched (the leaderboard and others' match
+// histories now show "Deleted player").
+export function useDeleteAccount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: async () => {
+      queryClient.setQueryData(ME, null)
+      await queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' })
+    },
   })
 }
 

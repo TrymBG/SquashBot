@@ -41,7 +41,8 @@ export default function LoginPage() {
           {loginMutation.isPending ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="mt-6 text-sm text-muted">
+      <p className="mt-6 text-sm text-muted">Forgot your password? Ask the admin for a reset link.</p>
+      <p className="mt-2 text-sm text-muted">
         Got an invite?{' '}
         <Link to="/signup" className="text-accent hover:underline">
           Sign up

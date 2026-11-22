@@ -1,7 +1,8 @@
 // Account endpoints: sign up, log in, log out, "who am I". Thin like routes.ts: check input, call authService,
 // turn the result into a status code and a session cookie.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { getUserForSession, login, logout, SESSION_DAYS, signup, type PublicUser } from "../services/authService.js";
+import { deleteAccount } from "../services/accountService.js";
+import { getUserForSession, login, logout, resetPassword, SESSION_DAYS, signup, type PublicUser } from "../services/authService.js";
 
 export interface AuthOptions {
   inviteCode: string | null; // null = sign-up closed
@@ -29,6 +30,21 @@ const loginBody = {
     password: { type: "string", maxLength: 128 },
   },
   required: ["email", "password"],
+} as const;
+
+const resetBody = {
+  type: "object",
+  properties: {
+    token: { type: "string", minLength: 1, maxLength: 100 },
+    password: { type: "string", minLength: 8, maxLength: 128 }, // same rule as sign-up
+  },
+  required: ["token", "password"],
+} as const;
+
+const deleteAccountBody = {
+  type: "object",
+  properties: { password: { type: "string", maxLength: 128 } },
+  required: ["password"],
 } as const;
 
 const signupErrors = {
@@ -117,6 +133,36 @@ export async function authRoutes(app: FastifyInstance, options: AuthOptions): Pr
       }
       setSessionCookie(reply, result.sessionToken, options.cookieSecure);
       return { user: result.user };
+    },
+  );
+
+  // Set a new password with a one-time link from the admin (npm run reset-link). Logs you in on success.
+  // Rate limited like login, although the token is random and can't be guessed anyway.
+  app.post<{ Body: { token: string; password: string } }>(
+    "/api/reset-password",
+    { schema: { body: resetBody }, config: { rateLimit } },
+    async (request, reply) => {
+      const result = await resetPassword(request.body.token, request.body.password);
+      if (!result.ok) {
+        return reply.code(400).send({ error: "This reset link is invalid, used or expired. Ask for a new one." });
+      }
+      setSessionCookie(reply, result.sessionToken, options.cookieSecure);
+      return { user: result.user };
+    },
+  );
+
+  // Delete my account (asks for the password again). requireLogin runs first, so logged out always gives 401.
+  // The request decoration is per plugin (Fastify encapsulation), so this plugin declares its own.
+  app.decorateRequest("user", null);
+  app.post<{ Body: { password: string } }>(
+    "/api/account/delete",
+    { onRequest: requireLogin, schema: { body: deleteAccountBody } },
+    async (request, reply) => {
+      const result = await deleteAccount(loggedInUser(request), request.body.password);
+      if (!result.ok) {
+        return reply.code(403).send({ error: "Wrong password" });
+      }
+      return reply.clearCookie(SESSION_COOKIE, { path: "/" }).code(204).send();
     },
   );
 

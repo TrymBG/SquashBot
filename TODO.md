@@ -45,9 +45,7 @@ Decided: frontend in `web/` (own `package.json`, Vite proxies `/api` in dev, Fas
 - [x] Rating-over-time chart (Recharts, x-axis = match number, date in tooltip)
 - [x] Match history on the profile: rating change per match, "Load more" with the `before` cursor
 - [ ] Head-to-head page and "rivals" (most played opponents)
-- [ ] All-matches page (everyone's recent matches, not just one player's). Needs a new API endpoint
-- [ ] Design pass: own visual identity instead of the generic look (user has input, discuss first)
-- [ ] Deploy
+- [x] All-matches page: done as the activity feed on the front page (`GET /api/matches`, D1 step 2)
 
 ## 4. Web-first: accounts and registering results on the website
 Decided 2026-11-12: the website becomes the main product. The Discord bot keeps working from the same services,
@@ -74,7 +72,7 @@ Milestones:
 - [ ] W5 Hosting on a Hetzner VPS (HTTPS is needed for `Secure` cookies), see "Hosting + README"
   - [x] W5a code: `npm run build`/`start`/`backup`, Fastify serves `web/dist`, `/api/health`, login + sign-up rate limit, `deploy/` files + `SERVER_SETUP.md`
   - [ ] W5b server: follow `deploy/SERVER_SETUP.md` (user runs it)
-- [ ] Later: "forgot password" (needs email sending), claim an existing Discord player for a web account, admin tools, tournaments
+- [ ] Later: email for "forgot password" (today the admin makes the link, see section 5), claim an existing Discord player for a web account, admin tools, tournaments
 
 ## 5. Before inviting friends: features + design (decided 2026-11-19)
 Additions only (new tables, no changes to existing ones), so they don't block hosting. Order: filters → tournaments → design pass → invite.
@@ -111,6 +109,14 @@ Each milestone planned in plan mode.
   - [ ] Step 2: front page = your dashboard (rating + change this week, results waiting for you, your tournament matches) + activity feed,
     compact leaderboard on the right; full leaderboard at `/leaderboard`. Code done and checked; tick after the browser check
   - [ ] Next steps (decide together): fonts/type scale, panels on the other pages (profile header, tournament cards), logo
+- [x] Launch hardening (2026-11-22): security headers on every response (nosniff, frame DENY, referrer policy, noindex,
+  HSTS in production), 500s never show internal errors (logged instead, logger at `warn`: no IPs stored),
+  explicit `localhost` listen, `robots.txt`
+- [ ] Accounts before inviting (2026-11-22, code done and checked with curl; tick after the browser check):
+  - privacy page `/privacy` (footer + sign-up link)
+  - delete my account (`/account`): account deleted, player anonymised as "Deleted player", hidden from the leaderboard
+  - forgot password: `npm run reset-link -- email` prints a one-time link (1 hour), `/reset?token=` page
+- [ ] Before going live: tell the Discord group their names and avatars will be on the website
 - [ ] Invite friends (after W5b hosting)
 
 ## Project setup
@@ -155,3 +161,6 @@ Each milestone planned in plan mode.
 - [ ] Autocomplete that suggests only valid scores for the chosen format
 - [ ] Restrict `canUndo` (for example to the two players)
 - [ ] "Last played" on the leaderboard
+- [ ] Content-Security-Policy header (careful: Discord avatars, Recharts inline styles)
+- [ ] Change password while logged in (today: a reset link from the admin)
+- [ ] A deleted player's unplayed matches in an active tournament can't be played (needs "end a tournament early")
