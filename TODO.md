@@ -118,7 +118,7 @@ Each milestone planned in plan mode.
 - [x] PR workflow: install `gh` (`sudo apt install gh`, `gh auth login`), one branch per feature, "Squash and merge"
 - [ ] Hook: run `npm run typecheck` after every file edit
 - [x] CI: GitHub Actions (`.github/workflows/ci.yml`) on PRs and main: typecheck, tests, web typecheck/lint, build
-- [ ] Branch rule on main: require the CI check before merging (after the first green run)
+- [x] Branch rule on main: CI check "Typecheck, test, build" required before merging (admin can still bypass)
 - [ ] CD: deploy on merge to main (Action SSHes into the server and runs `deploy/deploy.sh`), after W5b
 - [x] Permission allowlist in `.claude/settings.json` (`npm test`, `npm run typecheck`, `git status/diff/log`)
 
