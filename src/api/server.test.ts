@@ -198,3 +198,29 @@ describe("serving the built website (production)", () => {
     assert.equal((await get("/players/seed-2", null)).statusCode, 404);
   });
 });
+
+describe("GET /api/matches (activity feed)", () => {
+  it("is public, newest first, and pages with ?before", async () => {
+    for (let i = 0; i < 25; i++) play("trym", "ola", 3, 0);
+
+    const first = await buildServer().inject({ method: "GET", url: "/api/matches" });
+    const second = await buildServer().inject({ method: "GET", url: `/api/matches?before=${first.json().nextBefore}` });
+
+    assert.equal(first.statusCode, 200);
+    assert.equal(first.json().matches.length, 20);
+    assert.equal(second.json().matches.length, 5);
+    assert.equal(second.json().nextBefore, null);
+  });
+
+  it("rejects bad paging with 400", async () => {
+    for (const query of ["limit=0", "limit=101", "before=abc"]) {
+      assert.equal((await buildServer().inject({ method: "GET", url: `/api/matches?${query}` })).statusCode, 400, query);
+    }
+  });
+});
+
+describe("GET /api/me/tournament-matches", () => {
+  it("needs a login", async () => {
+    assert.equal((await buildServer().inject({ method: "GET", url: "/api/me/tournament-matches" })).statusCode, 401);
+  });
+});

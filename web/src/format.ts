@@ -55,3 +55,15 @@ export function statusText(t: Pick<TournamentSummary, 'status' | 'matchCount' | 
   if (t.matchCount > 0 && t.playedCount === t.matchCount) return 'Finished'
   return `Ongoing ${t.playedCount}/${t.matchCount} played`
 }
+
+// "just now", "5 min", "2 h", "3 d", and the date once it's more than a week old. For the activity feed.
+export function formatTimeAgo(isoTimestamp: string, now = new Date()): string {
+  const minutes = Math.floor((now.getTime() - new Date(isoTimestamp).getTime()) / 60_000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} h`
+  const days = Math.floor(hours / 24)
+  if (days <= 7) return `${days} d`
+  return formatDate(isoTimestamp)
+}

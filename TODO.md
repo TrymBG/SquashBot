@@ -108,7 +108,9 @@ Each milestone planned in plan mode.
 - [ ] Organizer can end a tournament early (until then, an unfinished ranked tournament's matches never count)
 - [ ] D1 Design pass (user has input, discuss first)
   - [x] Step 1: design tokens in `index.css` + matte charcoal palette, squash-ball yellow accent
-  - [ ] Next steps (decide together): fonts/type scale, spacing/density, header and leaderboard layout, logo
+  - [ ] Step 2: front page = your dashboard (rating + change this week, results waiting for you, your tournament matches) + activity feed,
+    compact leaderboard on the right; full leaderboard at `/leaderboard`. Code done and checked; tick after the browser check
+  - [ ] Next steps (decide together): fonts/type scale, panels on the other pages (profile header, tournament cards), logo
 - [ ] Invite friends (after W5b hosting)
 
 ## Project setup

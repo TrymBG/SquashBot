@@ -2,6 +2,7 @@
 import { Link, Route, Routes, useNavigate } from 'react-router'
 import { useCurrentUser, useLogout } from './auth.ts'
 import DevLoginSwitcher from './components/DevLoginSwitcher.tsx'
+import HomePage from './pages/HomePage.tsx'
 import LeaderboardPage from './pages/LeaderboardPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import PlayerPage from './pages/PlayerPage.tsx'
@@ -15,10 +16,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas text-ink">
       <header className="border-b border-line">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-6">
             <Link to="/" className="text-lg font-bold tracking-tight">
               Squash Ladder
+            </Link>
+            <Link to="/leaderboard" className="text-sm text-soft hover:underline">
+              Leaderboard
             </Link>
             <Link to="/tournaments" className="text-sm text-soft hover:underline">
               Tournaments
@@ -31,9 +35,10 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8">
         <Routes>
-          <Route path="/" element={<LeaderboardPage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/players/:id" element={<PlayerPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />

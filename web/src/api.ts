@@ -30,6 +30,7 @@ export interface PlayerProfile {
   streak: { result: Result; count: number } | null
   recentForm: Result[] // newest first
   ratingHistory: { matchId: number; playedAt: string; rating: number }[] // oldest first
+  ratingChangeWeek: number // rating now minus 7 days ago
   opponents: OpponentRecord[] // everyone they've played, most played first
 }
 
@@ -347,4 +348,49 @@ export async function fetchDevUsers(): Promise<{ playerId: string; displayName: 
 
 export async function devLoginAs(playerId: string): Promise<User> {
   return (await postJson<{ user: User }>('/api/dev/login-as', { playerId })).user
+}
+
+// ---- Front page (copies of the backend's FeedMatchRow / OpenTournamentMatchRow) ----
+
+export interface FeedPlayer {
+  id: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+export interface FeedMatch {
+  matchId: number
+  playedAt: string
+  format: string
+  winner: FeedPlayer
+  loser: FeedPlayer
+  winnerGames: number
+  loserGames: number
+  ranked: boolean
+  winnerChange: number | null // null: not rated (unranked, or its tournament hasn't finished)
+  loserChange: number | null
+  tournament: { id: number; name: string } | null
+}
+
+export interface FeedPage {
+  matches: FeedMatch[]
+  nextBefore: number | null
+}
+
+export interface OpenTournamentMatch {
+  tournamentMatchId: number
+  tournamentId: number
+  tournamentName: string
+  matchFormat: string
+  opponent: { id: string; displayName: string }
+}
+
+// Everyone's latest matches, newest first, one page at a time.
+export function fetchRecentMatches(before?: number): Promise<FeedPage> {
+  return getJson(`/api/matches${before === undefined ? '' : `?before=${before}`}`)
+}
+
+// My tournament matches that are ready to play (needs a login).
+export function fetchMyTournamentMatches(): Promise<OpenTournamentMatch[]> {
+  return getJson('/api/me/tournament-matches')
 }
