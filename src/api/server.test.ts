@@ -6,7 +6,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import { openDatabase } from "../db.js";
 import { play } from "../testHelpers.js";
-import { buildServer } from "./server.js";
+import { buildServer, IMMUTABLE, REVALIDATE } from "./server.js";
 
 beforeEach(() => {
   openDatabase(":memory:");
@@ -185,6 +185,13 @@ describe("serving the built website (production)", () => {
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body, "console.log('app')");
+  });
+
+  it("lets the browser keep hashed files for a year, but makes it check index.html every time", async () => {
+    assert.equal((await get("/assets/app.js")).headers["cache-control"], IMMUTABLE);
+    for (const url of ["/", "/players/seed-2"]) {
+      assert.equal((await get(url)).headers["cache-control"], REVALIDATE, url);
+    }
   });
 
   it("still answers JSON for the API, and a JSON 404 for unknown API routes", async () => {

@@ -23,7 +23,10 @@ cat ~/.ssh/id_ed25519.pub                                            # copy this
 - Type: the smallest/cheapest shared vCPU type is plenty (Arm or x86 both work).
 - Networking: keep **IPv4** on (the free sslip.io address and Let's Encrypt need it).
 - SSH keys: paste the line from step 1. Name: `squash`.
-- Optional: enable **Backups** (Hetzner keeps daily copies of the whole server, off this machine; small extra cost).
+- Enable **Backups** (Hetzner keeps daily copies of the whole server, off this machine; about 20% extra). The app's own
+  nightly backups are on the same disk, so without this a broken server loses everything.
+- In the Console, accept Hetzner's **data processing agreement** (DPA, under the project/account settings). Your users'
+  data lives on their server, so GDPR wants this agreement in place.
 - Create, then note the server's **IPv4 address** (below: `SERVER_IP`).
 
 ## 3. First login and basic security (root)
@@ -118,6 +121,8 @@ buy a domain. If Let's Encrypt refuses it, use a free DuckDNS name instead.
 - Log in or sign up (`/signup?code=<INVITE_CODE>`), register a result.
 - In Discord, `/ping` answers (now from the server).
 - `systemctl list-timers squash-backup` shows the next backup.
+- Uptime alert: make a free account at uptimerobot.com, add an HTTP(S) monitor for
+  `https://SERVER-IP-WITH-DASHES.sslip.io/api/health` every 5 minutes, alert by email. It only knows the URL, no user data.
 
 ## Later: deploying a new version
 Merge the PR on GitHub, then:
@@ -125,6 +130,18 @@ Merge the PR on GitHub, then:
 ssh root@SERVER_IP
 su - squash -c '~/SquashBot/deploy/deploy.sh'      # quotes: ~ must mean squash's home, not root's
 ```
+
+## Something broke after a deploy: roll back
+Go back to the last version that worked (find it with `git log --oneline -5` in `~/SquashBot`, or on GitHub):
+```bash
+ssh root@SERVER_IP
+su - squash -c '~/SquashBot/deploy/deploy.sh 5271ebd'   # the commit that worked
+```
+This runs the same steps (tests, build, backup, restart) on that commit. Then fix the problem in a new PR; the next
+normal `deploy.sh` goes back to the latest main.
+- Schema changes are additions only (new tables and columns), so the old code runs fine on the newer database.
+- If the data itself got damaged: restore the backup `deploy.sh` made just before the bad version started (the newest
+  file in `/home/squash/data/backups`, see "Restore a backup" below).
 
 ## Someone forgot their password
 There's no email sending, so you make a one-time link and send it to them (works once, for 1 hour):

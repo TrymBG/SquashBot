@@ -57,6 +57,19 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   return app;
 }
 
+// How long the browser may keep a file without asking again.
+// - Files in assets/ have a hash of their content in the name (index-X2eA.js): a new build gives new names, so the
+//   old file never changes. The browser may keep it for a year without asking ("immutable").
+// - Everything else (index.html, favicon, robots.txt) keeps its name between builds, so the browser must check with
+//   the server every time ("no-cache" means "check first", not "don't store"). That's how a deploy reaches everyone:
+//   the fresh index.html points to the new asset names.
+export const IMMUTABLE = "public, max-age=31536000, immutable";
+export const REVALIDATE = "no-cache";
+
+function setCacheHeaders(reply: { header(name: string, value: string): unknown }, path: string): void {
+  reply.header("Cache-Control", path.includes("/assets/") ? IMMUTABLE : REVALIDATE);
+}
+
 // Headers the browser should get on every response (API, pages, files, errors):
 // - nosniff: the browser trusts our Content-Type instead of guessing (a guessed "HTML" upload could run as a page).
 // - X-Frame-Options DENY: no other site can show ours inside a frame, so it can't trick you into clicking our buttons (clickjacking).
@@ -98,7 +111,7 @@ function hideInternalErrors(app: FastifyInstance): void {
 // Serves the built React app. Real files (JS, CSS, images) are served as they are. Any other GET that isn't /api
 // gets index.html, so a reload on /players/123 works: React Router reads the URL in the browser and shows the page.
 function serveWebsite(app: FastifyInstance, root: string): void {
-  app.register(fastifyStatic, { root, wildcard: false });
+  app.register(fastifyStatic, { root, wildcard: false, setHeaders: setCacheHeaders });
   app.setNotFoundHandler((request, reply) => {
     if (request.method === "GET" && !request.url.startsWith("/api/")) {
       return reply.sendFile("index.html");
