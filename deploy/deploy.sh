@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 # Deploys the latest main. Run on the server, as the squash user, from anywhere: ~/SquashBot/deploy/deploy.sh
+# Roll back to an earlier version by giving its commit: ~/SquashBot/deploy/deploy.sh 5271ebd
+# (the next deploy without a commit goes back to the latest main).
 # Stops at the first failing step (set -e), so a failing test or build never replaces the running version.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "==> Getting the latest code"
-git pull --ff-only
+if [ $# -ge 1 ]; then
+  echo "==> Getting commit $1 (rollback)"
+  git fetch
+  git checkout --detach "$1"
+else
+  echo "==> Getting the latest code"
+  git switch main
+  git pull --ff-only
+fi
 
 echo "==> Installing dependencies"
 npm ci

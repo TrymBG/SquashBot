@@ -152,7 +152,11 @@ Each milestone planned in plan mode.
 - [x] `npm audit`: `npm audit fix` updated `undici` 6.29.0 → 6.29.1, 0 vulnerabilities
 - [x] Back up the database file: `npm run backup` (`VACUUM INTO`, keeps 14), nightly via `deploy/squash-backup.timer`
 - [ ] Buy a domain (until then `<ip-with-dashes>.sslip.io`)
-- [ ] Off-server backup copy (Hetzner Backups, or download one now and then)
+- [ ] Off-server backup copy: enable Hetzner Backups when creating the server (in SERVER_SETUP.md step 2)
+- [ ] Accept Hetzner's data processing agreement (DPA) in the Console (SERVER_SETUP.md step 2)
+- [ ] Uptime alert on `/api/health` (UptimeRobot, SERVER_SETUP.md step 10)
+- [x] Launch checklist (2026-11-23): long-term caching for hashed files (`index.html` re-checked every time), meta description
+  for link previews, rollback = `deploy.sh <commit>` (documented in SERVER_SETUP.md)
 - [ ] README: what it does, screenshots, how to run it, design decisions and tradeoffs
 - [ ] Friends are using it while my laptop is off
 

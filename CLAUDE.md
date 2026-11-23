@@ -28,7 +28,7 @@ It is a learning and portfolio project: I must be able to explain every part in 
 - `npm run seed`: fresh `seed.db` with 6 fake players and 120 matches over 90 days (deterministic); the players also get web accounts
   (`seed1@example.com` … `seed6@example.com`, password `password`)
 - Production: `npm run build` (backend `tsc -p tsconfig.build.json` → `dist/`, plus `web/dist`), `npm start` (bot + API + website from `dist/`),
-  `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14), `npm run reset-link -- <email>` (one-time password link). Server: `deploy/deploy.sh`, setup in `deploy/SERVER_SETUP.md`
+  `npm run start:api` (website only, no Discord), `npm run backup` (snapshot into `BACKUP_DIR`, keeps 14), `npm run reset-link -- <email>` (one-time password link). Server: `deploy/deploy.sh` (or `deploy.sh <commit>` to roll back), setup in `deploy/SERVER_SETUP.md`
 - `DATABASE_PATH=seed.db npm run dev`: run the bot on the fake data
 - CI: `.github/workflows/ci.yml` runs the same checks on every PR and push to main (job "Typecheck, test, build"); keep it in sync
   when a check command changes. CD (auto-deploy) comes after the server exists
@@ -174,7 +174,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 272 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 273 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.
