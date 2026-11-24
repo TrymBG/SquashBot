@@ -1,7 +1,8 @@
 // A player's profile: header with rating and record, recent form, rating chart and match history.
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { fetchPlayerProfile, isNotFound, type MatchFilters as Filters, type PlayerProfile } from '../api.ts'
+import { fetchPlayerProfile, isNotFound, STARTING_RATING, type MatchFilters as Filters, type PlayerProfile } from '../api.ts'
+import { useCurrentUser } from '../auth.ts'
 import { formatPercent, formatRating } from '../format.ts'
 import { findFormat } from '../formats.ts'
 import Avatar from '../components/Avatar.tsx'
@@ -14,6 +15,7 @@ import ResultBadge from '../components/ResultBadge.tsx'
 export default function PlayerPage() {
   const { id = '' } = useParams() // the :id part of /players/:id (always there on this route)
   const [searchParams] = useSearchParams() // ?opponent=…&format=… (set by MatchFilters)
+  const isMe = useCurrentUser()?.playerId === id
   const { data: profile, isPending, error } = useQuery({
     queryKey: ['player', id],
     queryFn: () => fetchPlayerProfile(id),
@@ -33,14 +35,14 @@ export default function PlayerPage() {
 
   return (
     <div className="space-y-8">
-      <Link to="/" className="text-sm text-muted hover:underline">
+      <Link to="/leaderboard" className="text-sm text-muted hover:underline">
         ← Leaderboard
       </Link>
 
       <ProfileHeader profile={profile} />
 
       {played === 0 ? (
-        <p className="text-muted">No matches yet.</p>
+        <NoMatchesYet name={profile.displayName} isMe={isMe} />
       ) : (
         <>
           <section>
@@ -112,11 +114,30 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
+// A profile with no matches: an invitation for yourself, a plain note for someone else.
+function NoMatchesYet({ name, isMe }: { name: string; isMe: boolean }) {
+  if (!isMe) return <p className="text-muted">{name} hasn't played a match yet.</p>
+  return (
+    <div className="rounded-sm border border-dashed border-line-strong p-5">
+      <h2 className="type-heading">No matches yet</h2>
+      <p className="mt-1 text-muted">
+        Your rating chart and match history start with your first result. Everyone starts at {STARTING_RATING}.
+      </p>
+      <Link
+        to="/results"
+        className="mt-4 inline-block rounded bg-accent px-4 py-2 font-semibold text-on-accent hover:bg-accent-hover"
+      >
+        Register a result
+      </Link>
+    </div>
+  )
+}
+
 function NotFound() {
   return (
     <div className="space-y-4">
       <p className="text-muted">Player not found.</p>
-      <Link to="/" className="text-sm text-muted hover:underline">
+      <Link to="/leaderboard" className="text-sm text-muted hover:underline">
         ← Leaderboard
       </Link>
     </div>

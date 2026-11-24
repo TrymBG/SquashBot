@@ -8,7 +8,9 @@ import Ladder from '../components/Ladder.tsx'
 export default function LeaderboardPage() {
   // TanStack Query runs fetchLeaderboard, caches the result under this key, and re-renders on loading/success/error.
   const { data: players, isPending, isError } = useQuery({ queryKey: ['leaderboard'], queryFn: fetchLeaderboard })
-  const me = useCurrentUser()?.playerId
+  const currentUser = useCurrentUser()
+  const me = currentUser?.playerId
+  const notOnLadder = currentUser && players && !players.some((p) => p.id === me) ? currentUser.displayName : undefined
 
   return (
     <section className="mx-auto max-w-2xl">
@@ -25,7 +27,7 @@ export default function LeaderboardPage() {
           to get on it.
         </p>
       )}
-      {players && players.length > 0 && <Ladder players={players} me={me} full />}
+      {players && players.length > 0 && <Ladder players={players} me={me} full notOnLadder={notOnLadder} />}
     </section>
   )
 }

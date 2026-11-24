@@ -8,6 +8,7 @@ import { useCurrentUser } from '../auth.ts'
 import ActivityFeed from '../components/ActivityFeed.tsx'
 import FormatTag from '../components/FormatTag.tsx'
 import LeaderboardWidget from '../components/LeaderboardWidget.tsx'
+import NextRung from '../components/NextRung.tsx'
 import ReportList from '../components/ReportList.tsx'
 import StatTile from '../components/StatTile.tsx'
 import TrophyIcon from '../components/TrophyIcon.tsx'
@@ -41,6 +42,8 @@ function Dashboard({ user }: { user: User }) {
   const tournamentMatches = useMyTournamentMatches(true)
   const waiting = reports.data?.incoming ?? []
   const toPlay = tournamentMatches.data ?? []
+  // On the ladder = has at least one rated match (the profile's position is null until then).
+  const onLadder = profile.data ? profile.data.position !== null : undefined
 
   return (
     <section>
@@ -51,7 +54,7 @@ function Dashboard({ user }: { user: User }) {
             Your profile
           </Link>
         </div>
-        {profile.data && (
+        {onLadder && profile.data && (
           <StatTile
             label="Your rating"
             value={formatRating(profile.data.rating)}
@@ -59,6 +62,9 @@ function Dashboard({ user }: { user: User }) {
           />
         )}
       </div>
+
+      {onLadder === false && <NotOnLadderYet />}
+      {onLadder && <NextRung me={user.playerId} />}
 
       {waiting.length > 0 && (
         <div className="mt-6">
@@ -92,7 +98,7 @@ function Dashboard({ user }: { user: User }) {
         </div>
       )}
 
-      {reports.isSuccess && tournamentMatches.isSuccess && waiting.length === 0 && toPlay.length === 0 && (
+      {onLadder && reports.isSuccess && tournamentMatches.isSuccess && waiting.length === 0 && toPlay.length === 0 && (
         <p className="mt-6 text-sm text-muted">
           All caught up. Played a match?{' '}
           <Link to="/results" className="text-accent hover:underline">
@@ -101,6 +107,22 @@ function Dashboard({ user }: { user: User }) {
         </p>
       )}
     </section>
+  )
+}
+
+// A new player's first visit: no rating to show yet, so say what gets them on the ladder.
+function NotOnLadderYet() {
+  return (
+    <div className="mt-6 rounded-sm border border-dashed border-line-strong p-5">
+      <h2 className="type-heading">You're not on the ladder yet</h2>
+      <p className="mt-1 text-muted">Play a match and register it. Your plate goes up with your first rated result.</p>
+      <Link
+        to="/results"
+        className="mt-4 inline-block rounded bg-accent px-4 py-2 font-semibold text-on-accent hover:bg-accent-hover"
+      >
+        Register a result
+      </Link>
+    </div>
   )
 }
 
