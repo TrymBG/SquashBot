@@ -2,8 +2,11 @@
 // Two rails (the left and right borders) with the players as rungs. Your own plate is the only yellow one.
 // Each plate: position, name, rating and the movement since last week (▲2 / ▼1 / New). The full version
 // (leaderboard page) also shows the avatar and the W–L record; the compact one (front page) leaves them out.
+// A dashed line marks where ratings cross 1000, the rating everyone starts at: above it you've gained, below it lost.
+import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router'
-import type { LeaderboardRow } from '../api.ts'
+import { STARTING_RATING, type LeaderboardRow } from '../api.ts'
+import { crossesStart } from '../ladder.ts'
 import { formatRating } from '../format.ts'
 import Avatar from './Avatar.tsx'
 
@@ -11,21 +14,47 @@ interface Props {
   players: LeaderboardRow[]
   me?: string | undefined // your player id: that plate is highlighted
   full?: boolean
+  notOnLadder?: string | undefined // your name, if you're logged in but have no rated match yet: a dashed plate at the bottom
 }
 
-export default function Ladder({ players, me, full = false }: Props) {
+export default function Ladder({ players, me, full = false, notOnLadder }: Props) {
   return (
-    <ol className="space-y-1.5 border-x-2 border-line-strong px-1.5 py-1.5">
+    <Rails>
       {players.map((player, index) => (
-        <li key={player.id}>
-          <Plate player={player} position={index + 1} mine={player.id === me} full={full} />
-        </li>
+        <Fragment key={player.id}>
+          {crossesStart(players[index - 1], player) && <StartLine />}
+          <li>
+            <Plate player={player} position={index + 1} mine={player.id === me} full={full} />
+          </li>
+        </Fragment>
       ))}
-    </ol>
+      {notOnLadder && (
+        <li className="flex min-h-11 items-center gap-3 rounded-sm border border-dashed border-line-strong px-3 py-1.5 text-muted">
+          <span className="w-6" />
+          <span className="flex-1 font-semibold [font-stretch:87.5%]">{notOnLadder}</span>
+          <span className="text-sm">Not on the ladder yet</span>
+        </li>
+      )}
+    </Rails>
   )
 }
 
-function Plate({ player, position, mine, full }: { player: LeaderboardRow; position: number; mine: boolean; full: boolean }) {
+// The two rails of the ladder (left and right border) around a list of rungs.
+export function Rails({ children }: { children: ReactNode }) {
+  return <ol className="space-y-1.5 border-x-2 border-line-strong px-1.5 py-1.5">{children}</ol>
+}
+
+export function StartLine() {
+  return (
+    <li className="flex items-center gap-2 px-1 text-xs text-faint" aria-label={`Start rating ${STARTING_RATING}`}>
+      <span className="flex-1 border-t border-dashed border-line-strong" />
+      <span aria-hidden="true">{STARTING_RATING} start</span>
+      <span className="w-4 border-t border-dashed border-line-strong" />
+    </li>
+  )
+}
+
+export function Plate({ player, position, mine, full }: { player: LeaderboardRow; position: number; mine: boolean; full: boolean }) {
   // On your yellow plate everything is dark text (green and red are unreadable on yellow); elsewhere quiet greys.
   const quiet = mine ? 'text-on-accent/70' : 'text-muted'
   return (
