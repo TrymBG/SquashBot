@@ -1,18 +1,20 @@
 // Log in with email and password. On success: go to your own profile.
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router'
+import { Link, Navigate, useSearchParams } from 'react-router'
 import { useCurrentUser, useLogin } from '../auth.ts'
 import TextField from '../components/TextField.tsx'
+import { safeNext } from '../navigation.ts'
 
 export default function LoginPage() {
   const currentUser = useCurrentUser()
   const loginMutation = useLogin()
+  const next = safeNext(useSearchParams()[0].get('next')) // e.g. back to a group's join link
   // "Controlled" inputs: React state holds each field's value, the input just shows it.
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   // Logged in (already, or just now: a successful login puts the user in the cache) → go to your profile.
-  if (currentUser) return <Navigate to={`/players/${currentUser.playerId}`} replace />
+  if (currentUser) return <Navigate to={next ?? `/players/${currentUser.playerId}`} replace />
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault() // stop the browser's own form submit (a full page reload)
@@ -44,7 +46,7 @@ export default function LoginPage() {
       <p className="mt-6 text-sm text-muted">Forgot your password? Ask the admin for a reset link.</p>
       <p className="mt-2 text-sm text-muted">
         Got an invite?{' '}
-        <Link to="/signup" className="text-accent hover:underline">
+        <Link to={next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'} className="text-accent hover:underline">
           Sign up
         </Link>
       </p>

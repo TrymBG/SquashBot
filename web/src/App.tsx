@@ -8,9 +8,12 @@ import { useCurrentUser, useLogout } from './auth.ts'
 import DevLoginSwitcher from './components/DevLoginSwitcher.tsx'
 import Logo from './components/Logo.tsx'
 import AccountPage from './pages/AccountPage.tsx'
+import GroupPage from './pages/GroupPage.tsx'
 import HomePage from './pages/HomePage.tsx'
+import JoinPage from './pages/JoinPage.tsx'
 import LeaderboardPage from './pages/LeaderboardPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
+import NewGroupPage from './pages/NewGroupPage.tsx'
 import PlayerPage from './pages/PlayerPage.tsx'
 import PrivacyPage from './pages/PrivacyPage.tsx'
 import ResetPasswordPage from './pages/ResetPasswordPage.tsx'
@@ -41,6 +44,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/groups/new" element={<NewGroupPage />} />
+          <Route path="/groups/:id" element={<GroupPage />} />
+          <Route path="/join/:code" element={<JoinPage />} />
           <Route path="/players/:id" element={<PlayerPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -77,7 +83,9 @@ function MainNav() {
 
   return (
     <nav aria-label="Main" className="order-last -ml-3 flex w-full sm:order-none sm:w-auto">
-      <NavItem to="/leaderboard">Leaderboard</NavItem>
+      <NavItem to="/leaderboard" alsoActiveUnder="/groups/">
+        Leaderboard
+      </NavItem>
       <NavItem to="/tournaments">Tournaments</NavItem>
       {currentUser && (
         <NavItem to="/results">
@@ -94,13 +102,16 @@ function MainNav() {
   )
 }
 
-function NavItem({ to, children }: { to: string; children: ReactNode }) {
+// alsoActiveUnder: another URL prefix that belongs to the same section (a group's ladder is under Leaderboard).
+function NavItem({ to, alsoActiveUnder, children }: { to: string; alsoActiveUnder?: string; children: ReactNode }) {
+  const { pathname } = useLocation()
+  const inSection = alsoActiveUnder !== undefined && pathname.startsWith(alsoActiveUnder)
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         `flex min-h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-semibold ${
-          isActive ? 'border-accent text-ink' : 'border-transparent text-soft hover:text-ink'
+          isActive || inSection ? 'border-accent text-ink' : 'border-transparent text-soft hover:text-ink'
         }`
       }
     >
