@@ -27,10 +27,12 @@ const HEAD_TO_HEAD_RECENT_SIZE = 5;
 
 // `now` is a parameter so tests can control "a week ago", like getPlayerProfile.
 // The ratings a week ago use played_at, the same as ratingChangeWeek.
-export function getLeaderboard(now = new Date()): LeaderboardEntry[] {
+// With a groupId: the group's ladder (its members only, all of them), and the movement counts places within the group.
+export function getLeaderboard(now = new Date(), groupId: number | null = null): LeaderboardEntry[] {
   const weekAgo = new Date(now.getTime() - WEEK_MS).toISOString();
-  const previousPosition = new Map(getRatingsBefore(weekAgo).map((row, index) => [row.playerId, index + 1]));
-  return queryLeaderboard(LEADERBOARD_SIZE).map((row, index) => {
+  const previousPosition = new Map(getRatingsBefore(weekAgo, groupId).map((row, index) => [row.playerId, index + 1]));
+  const limit = groupId === null ? LEADERBOARD_SIZE : -1;
+  return queryLeaderboard(limit, groupId).map((row, index) => {
     const before = previousPosition.get(row.id);
     return { ...row, rankChange: before === undefined ? null : before - (index + 1) };
   });

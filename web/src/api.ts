@@ -404,3 +404,66 @@ export function fetchRecentMatches(before?: number): Promise<FeedPage> {
 export function fetchMyTournamentMatches(): Promise<OpenTournamentMatch[]> {
   return getJson('/api/me/tournament-matches')
 }
+
+// ---- Groups (copies of the types in the backend's groupService.ts) ----
+
+export type GroupRole = 'owner' | 'member'
+
+export interface GroupSummary {
+  id: number
+  name: string
+  memberCount: number
+}
+
+export interface GroupMember {
+  playerId: string
+  displayName: string
+  avatarUrl: string | null
+  role: GroupRole
+}
+
+export interface GroupView extends GroupSummary {
+  inviteCode: string
+  myRole: GroupRole
+  members: GroupMember[]
+}
+
+export function fetchMyGroups(): Promise<GroupSummary[]> {
+  return getJson('/api/groups')
+}
+
+export function fetchGroup(id: number): Promise<GroupView> {
+  return getJson(`/api/groups/${id}`)
+}
+
+export function fetchGroupLeaderboard(id: number): Promise<LeaderboardRow[]> {
+  return getJson(`/api/groups/${id}/leaderboard`)
+}
+
+export function createGroup(name: string): Promise<GroupSummary> {
+  return postJson('/api/groups', { name })
+}
+
+export function renewGroupInvite(id: number): Promise<{ inviteCode: string }> {
+  return postJson(`/api/groups/${id}/invite`)
+}
+
+export function removeGroupMember(id: number, playerId: string): Promise<void> {
+  return deleteJson(`/api/groups/${id}/members/${encodeURIComponent(playerId)}`)
+}
+
+export function leaveGroup(id: number): Promise<void> {
+  return postJson(`/api/groups/${id}/leave`)
+}
+
+export function deleteGroup(id: number): Promise<void> {
+  return deleteJson(`/api/groups/${id}`)
+}
+
+export function fetchInvite(code: string): Promise<GroupSummary> {
+  return getJson(`/api/invites/${encodeURIComponent(code)}`)
+}
+
+export function joinGroup(code: string): Promise<{ groupId: number }> {
+  return postJson(`/api/invites/${encodeURIComponent(code)}/join`)
+}

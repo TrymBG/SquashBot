@@ -8,6 +8,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { cookieSecure, devLogin, inviteCode, webDistPath } from "../config.js";
 import { authRoutes, type AuthOptions } from "./authRoutes.js";
 import { devRoutes } from "./devRoutes.js";
+import { groupRoutes } from "./groupRoutes.js";
 import { reportRoutes } from "./reportRoutes.js";
 import { apiRoutes } from "./routes.js";
 import { tournamentPublicRoutes, tournamentRoutes } from "./tournamentRoutes.js";
@@ -48,6 +49,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   app.register(reportRoutes);
   app.register(tournamentPublicRoutes); // viewing: no login
   app.register(tournamentRoutes); // creating and changing: behind requireLogin
+  app.register(groupRoutes); // members only: everything behind requireLogin
   if (options.devLogin ?? devLogin) {
     app.register(devRoutes, { cookieSecure: auth.cookieSecure });
   }

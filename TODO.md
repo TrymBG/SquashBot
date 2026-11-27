@@ -106,14 +106,18 @@ Each milestone planned in plan mode.
 - [ ] Organizer can end a tournament early (until then, an unfinished ranked tournament's matches never count)
 - [ ] D1 Design pass (user has input, discuss first)
   - [x] Step 1: design tokens in `index.css` + matte charcoal palette, squash-ball yellow accent
-  - [ ] Step 2: front page = your dashboard (rating + change this week, results waiting for you, your tournament matches) + activity feed,
-    compact leaderboard on the right; full leaderboard at `/leaderboard`. Code done and checked; tick after the browser check
-  - [ ] Step 3 (2026-11-22, code done; tick after the browser review): Saira (self-hosted, width axis) + type roles
+  - [x] Step 2: front page = your dashboard (rating + change this week, results waiting for you, your tournament matches) + activity feed,
+    compact leaderboard on the right; full leaderboard at `/leaderboard` (#25)
+  - [x] Step 3 (2026-11-22, #28, checked with Playwright screenshots): Saira (self-hosted, width axis) + type roles
     (`type-title/heading/figure/hero`), sentence-case headings, no "·" meta strings / "→" links / 🏆 emoji (Meta, FormatTag,
     TrophyIcon), yellow focus ring, NavLink active state, phone header (nav row + account menu), ball logo + favicon
-  - [ ] Step 4 (same branch): the ladder: leaderboard as name plates on two rails, your plate yellow, movement since last
+  - [x] Step 4 (#28, #29 fixes from screenshots): the ladder: leaderboard as name plates on two rails, your plate yellow, movement since last
     week (`rankChange` on `/api/leaderboard`, `getRatingsBefore`; `ladder.test.ts`)
+  - [x] Step 5 (#31): next rung (the plates around you, gaps on the rails), first-visit states for new players, "1000 start" line
   - [ ] Next: profile header and tournament pages in the new style
+- [ ] Groups (2026-11-27, code done and checked with Playwright; tick after the browser review): an overall leaderboard plus
+  your groups' leaderboards (one rating, filtered to members), invite link per group, members only, owner renews the link /
+  removes members / deletes; tabs on `/leaderboard`, `/groups/:id`, `/groups/new`, `/join/:code`, `?next=` after login
 - [x] Launch hardening (2026-11-22): security headers on every response (nosniff, frame DENY, referrer policy, noindex,
   HSTS in production), 500s never show internal errors (logged instead, logger at `warn`: no IPs stored),
   explicit `localhost` listen, `robots.txt`
@@ -123,6 +127,15 @@ Each milestone planned in plan mode.
   - forgot password: `npm run reset-link -- email` prints a one-time link (1 hour), `/reset?token=` page
 - [ ] Before going live: tell the Discord group their names and avatars will be on the website
 - [ ] Invite friends (after W5b hosting)
+
+## 6. Public version (later: after friends have used it; decided 2026-11-27)
+Goal: a website for anyone, not just the friend group. Groups (above) are step 1. Plan each step in plan mode.
+- [ ] Domain + email provider: email verification, "forgot password" by email, then open sign-up (no site invite code)
+- [ ] Legal: privacy page with controller name/contact, terms of use, age limit (13 in Norway), "download my data"
+- [ ] Moderation: report/remove users and groups, admin tools (no hand-editing the database)
+- [ ] A front page for strangers (what it is, how to start a group); landing page indexable, groups/profiles private
+- [ ] Discord bot per server (server = group), or keep it for the original group only
+- [ ] Maybe: separate ratings per group (replay over a group's matches) if pools of players never meet
 
 ## Project setup
 - [x] Split `CLAUDE.md`: project context (stack, DB design, rating rules, decisions, status) back in `CLAUDE.md`, personal workflow guide in `WORKFLOW.md`

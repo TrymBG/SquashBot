@@ -40,6 +40,12 @@ export function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(createHash("sha256").update(a).digest(), createHash("sha256").update(b).digest());
 }
 
+// A group's invite code, the last part of its join link (/join/<code>). 9 random bytes = 72 bits: far too many to guess,
+// and only 12 characters, so the link stays short enough to paste in a chat.
+export function newInviteCode(): string {
+  return randomBytes(9).toString("base64url");
+}
+
 // A new random session token, sent to the browser in a cookie. 32 random bytes can't be guessed.
 export function newSessionToken(): string {
   return randomBytes(32).toString("base64url");

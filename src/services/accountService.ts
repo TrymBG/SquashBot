@@ -13,6 +13,7 @@ import {
 } from "../db.js";
 import { verifyPassword } from "../passwords.js";
 import type { PublicUser } from "./authService.js";
+import { leaveAllGroups } from "./groupService.js";
 
 export const DELETED_PLAYER_NAME = "Deleted player";
 
@@ -35,6 +36,7 @@ export async function deleteAccount(user: PublicUser, password: string, now = ne
     // (as "Deleted player"), because their schedule and results depend on them.
     deleteDraftTournamentsOrganisedBy(user.playerId);
     removePlayerFromDraftTournaments(user.playerId);
+    leaveAllGroups(user.playerId); // owned groups go to the next member, or are deleted if empty
     anonymisePlayer(user.playerId, DELETED_PLAYER_NAME, at);
     deleteUser(user.id); // sessions and reset links go with it (ON DELETE CASCADE)
   });

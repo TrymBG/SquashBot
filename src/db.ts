@@ -127,6 +127,25 @@ function initSchema(): void {
       match_id      INTEGER REFERENCES matches(id) ON DELETE SET NULL,
       UNIQUE (tournament_id, round, position)
     );
+
+    -- Groups: a group's leaderboard is the overall ladder filtered to its members (one rating per player, like chess).
+    -- invite_code is the secret part of the join link. Stored as plain text (unlike session tokens), because members
+    -- must be able to see the link again; a leaked code only lets someone join the group, never into an account.
+    CREATE TABLE IF NOT EXISTS groups (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL,
+      invite_code TEXT NOT NULL UNIQUE,
+      created_at  TEXT NOT NULL
+    );
+
+    -- Exactly one owner per group (renews the link, removes members, deletes the group).
+    CREATE TABLE IF NOT EXISTS group_members (
+      group_id  INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      player_id TEXT NOT NULL REFERENCES players(id),
+      role      TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+      joined_at TEXT NOT NULL,
+      PRIMARY KEY (group_id, player_id)
+    );
   `);
 
   // Guard: an early version of tournament_matches (players NOT NULL, no position) can't be changed in place, and
@@ -417,7 +436,8 @@ export interface LeaderboardRow {
 // Every player's rating at a moment in the past: the rating after their last rated match played before `before`
 // (latest by rating_order). Players with no rated match before then are left out: they weren't on the leaderboard.
 // Highest rating first, so the index is the leaderboard position back then. Deleted players are left out, like now.
-export function getRatingsBefore(before: string): { playerId: string; rating: number }[] {
+// With a groupId, only that group's members count (positions within the group).
+export function getRatingsBefore(before: string, groupId: number | null = null): { playerId: string; rating: number }[] {
   const rows = db.prepare(`
     SELECT player_id, rating_after FROM (
       SELECT rh.player_id, rh.rating_after,
@@ -425,16 +445,18 @@ export function getRatingsBefore(before: string): { playerId: string; rating: nu
       FROM rating_history rh
       JOIN matches m ON m.id = rh.match_id
       JOIN players p ON p.id = rh.player_id
-      WHERE m.played_at < ? AND m.rating_order IS NOT NULL AND p.deleted_at IS NULL
+      WHERE m.played_at < :before AND m.rating_order IS NOT NULL AND p.deleted_at IS NULL
+        AND (:groupId IS NULL OR p.id IN (SELECT player_id FROM group_members WHERE group_id = :groupId))
     )
     WHERE newest = 1
     ORDER BY rating_after DESC
-  `).all(before) as { player_id: string; rating_after: number }[];
+  `).all({ before, groupId }) as { player_id: string; rating_after: number }[];
   return rows.map((row) => ({ playerId: row.player_id, rating: row.rating_after }));
 }
 
 // Players with at least one match, highest rating first. The default -1 means no limit (SQLite treats a negative LIMIT that way).
-export function getLeaderboard(limit = -1): LeaderboardRow[] {
+// With a groupId, only that group's members (a group ladder). One query for both: `:groupId IS NULL OR …`.
+export function getLeaderboard(limit = -1, groupId: number | null = null): LeaderboardRow[] {
   const rows = db.prepare(`
     SELECT
       p.id,
@@ -447,9 +469,10 @@ export function getLeaderboard(limit = -1): LeaderboardRow[] {
     FROM players p
     WHERE EXISTS (SELECT 1 FROM matches WHERE (winner_id = p.id OR loser_id = p.id) AND rating_order IS NOT NULL)
       AND p.deleted_at IS NULL
+      AND (:groupId IS NULL OR p.id IN (SELECT player_id FROM group_members WHERE group_id = :groupId))
     ORDER BY p.rating DESC
-    LIMIT ?
-  `).all(limit) as {
+    LIMIT :limit
+  `).all({ limit, groupId }) as {
     id: string;
     display_name: string;
     avatar_url: string | null;
@@ -1264,4 +1287,107 @@ export function getOpenTournamentMatches(playerId: string): OpenTournamentMatchR
     matchFormat: row.match_format,
     opponent: { id: row.opponent_id, displayName: row.opponent_name },
   }));
+}
+
+// ---- Groups ----
+
+export type GroupRole = "owner" | "member";
+
+export interface GroupRow {
+  id: number;
+  name: string;
+  inviteCode: string;
+  memberCount: number;
+}
+
+export interface GroupMemberRow {
+  playerId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: GroupRole;
+  joinedAt: string;
+}
+
+const GROUP_SELECT = `
+  SELECT g.id, g.name, g.invite_code,
+         (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id) AS member_count
+  FROM groups g
+`;
+
+type GroupDbRow = { id: number; name: string; invite_code: string; member_count: number };
+
+function toGroupRow(row: GroupDbRow): GroupRow {
+  return { id: row.id, name: row.name, inviteCode: row.invite_code, memberCount: row.member_count };
+}
+
+export function insertGroup(name: string, inviteCode: string, createdAt: string): number {
+  const result = db.prepare("INSERT INTO groups (name, invite_code, created_at) VALUES (?, ?, ?)").run(name, inviteCode, createdAt);
+  return Number(result.lastInsertRowid);
+}
+
+export function getGroupById(id: number): GroupRow | undefined {
+  const row = db.prepare(`${GROUP_SELECT} WHERE g.id = ?`).get(id) as GroupDbRow | undefined;
+  return row && toGroupRow(row);
+}
+
+export function getGroupByInviteCode(inviteCode: string): GroupRow | undefined {
+  const row = db.prepare(`${GROUP_SELECT} WHERE g.invite_code = ?`).get(inviteCode) as GroupDbRow | undefined;
+  return row && toGroupRow(row);
+}
+
+// The groups a player is in, by name.
+export function getGroupsOf(playerId: string): GroupRow[] {
+  const rows = db.prepare(`
+    ${GROUP_SELECT}
+    WHERE g.id IN (SELECT group_id FROM group_members WHERE player_id = ?)
+    ORDER BY g.name COLLATE NOCASE
+  `).all(playerId) as GroupDbRow[];
+  return rows.map(toGroupRow);
+}
+
+export function setGroupInviteCode(id: number, inviteCode: string): void {
+  db.prepare("UPDATE groups SET invite_code = ? WHERE id = ?").run(inviteCode, id);
+}
+
+// Deletes the group; its memberships go with it (ON DELETE CASCADE).
+export function deleteGroupRow(id: number): void {
+  db.prepare("DELETE FROM groups WHERE id = ?").run(id);
+}
+
+export function insertGroupMember(groupId: number, playerId: string, role: GroupRole, joinedAt: string): void {
+  db.prepare("INSERT INTO group_members (group_id, player_id, role, joined_at) VALUES (?, ?, ?, ?)").run(groupId, playerId, role, joinedAt);
+}
+
+// The player's role in the group, or undefined if they aren't a member.
+export function getGroupRole(groupId: number, playerId: string): GroupRole | undefined {
+  const row = db.prepare("SELECT role FROM group_members WHERE group_id = ? AND player_id = ?").get(groupId, playerId) as
+    | { role: GroupRole }
+    | undefined;
+  return row?.role;
+}
+
+// Members in the order they joined (the first one is the longest-standing member).
+export function getGroupMembers(groupId: number): GroupMemberRow[] {
+  const rows = db.prepare(`
+    SELECT gm.player_id, p.display_name, p.avatar_url, gm.role, gm.joined_at
+    FROM group_members gm
+    JOIN players p ON p.id = gm.player_id
+    WHERE gm.group_id = ?
+    ORDER BY gm.joined_at, gm.rowid
+  `).all(groupId) as { player_id: string; display_name: string; avatar_url: string | null; role: GroupRole; joined_at: string }[];
+  return rows.map((row) => ({
+    playerId: row.player_id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_url,
+    role: row.role,
+    joinedAt: row.joined_at,
+  }));
+}
+
+export function setGroupRole(groupId: number, playerId: string, role: GroupRole): void {
+  db.prepare("UPDATE group_members SET role = ? WHERE group_id = ? AND player_id = ?").run(role, groupId, playerId);
+}
+
+export function deleteGroupMember(groupId: number, playerId: string): void {
+  db.prepare("DELETE FROM group_members WHERE group_id = ? AND player_id = ?").run(groupId, playerId);
 }

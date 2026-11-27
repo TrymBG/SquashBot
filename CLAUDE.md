@@ -61,6 +61,8 @@ src/
     authRoutes.ts       # POST /api/signup, /api/login, /api/logout, /api/reset-password, /api/account/delete (requireLogin), GET /api/me; requireLogin hook + loggedInUser(request)
     reportRoutes.ts     # GET /api/opponents, GET/POST /api/reports (optional tournamentMatchId), POST /api/reports/:id/confirm|reject|cancel (all behind requireLogin)
     tournamentRoutes.ts # public GET /api/tournaments(/:id); behind requireLogin: POST /api/tournaments, POST/DELETE .../players, POST .../start, GET /api/me/tournament-matches (my open ones)
+    groupRoutes.ts      # all behind requireLogin: GET/POST /api/groups, GET /api/groups/:id(/leaderboard), POST .../invite, DELETE .../members/:playerId,
+                        # POST .../leave, DELETE /api/groups/:id, GET /api/invites/:code, POST /api/invites/:code/join (non-members get 404)
     devRoutes.ts        # dev only: GET /api/dev/users, POST /api/dev/login-as (registered only when config.devLogin; 404 otherwise)
     server.test.ts, hardening.test.ts (security headers, generic 500s), authRoutes.test.ts, reportRoutes.test.ts, tournamentRoutes.test.ts
   commands/             # one file per slash command (thin: input in, reply out)
@@ -69,9 +71,11 @@ src/
   services/             # business logic, shared by bot and later the API
     matchService.ts     # recordMatch, undoMatch, canUndo
     matchService.test.ts
-    statsService.ts     # getLeaderboard (+ rankChange since 7 days ago, ladder.test.ts), getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
+    statsService.ts     # getLeaderboard(now, groupId?) (+ rankChange since 7 days ago, ladder.test.ts; with a group: members only, movement within the group), getPlayerProfile (incl. `opponents`: record vs each opponent), getPlayerMatches (cursor paging + opponent/format filters), getHeadToHead
     statsService.test.ts
     authService.ts      # signup (invite code), login, logout, getUserForSession, createPasswordReset/resetPassword (+ passwordReset.test.ts); `now` parameter for testable expiry
+    groupService.ts     # groups: create, join by invite code, owner renews link / removes / deletes, leave (owner → next member, last → deleted),
+                        # leaveAllGroups (account deletion) (+ groupService.test.ts)
     accountService.ts   # deleteAccount: deletes the user, anonymises the player ("Deleted player", players.deleted_at) (+ accountService.test.ts)
     authService.test.ts
     reportService.ts    # reportResult, listReports, listOpponents, confirmReport (→ recordMatch), rejectReport, cancelReport
@@ -109,10 +113,13 @@ web/
     reports.ts          # hooks for /results: useOpponents, useReports, create/confirm/reject/cancel mutations (also refresh tournaments)
     tournaments.ts      # hooks: useTournaments, useTournament(id), create/add/remove/start mutations, invalidateTournaments()
     scores.ts           # validResults(format): every valid result for the form (same rules as validation.ts)
+    groups.ts           # hooks for groups (useMyGroups, useGroup, useGroupLeaderboard, join/create/renew/remove/leave/delete)
+    navigation.ts       # safeNext(): the ?next= page after login/sign-up, only paths on this site (no open redirect)
+    ladder.ts           # crossesStart(): where the "1000 start" line goes
     home.ts             # hooks for the front page: useRecentMatches (feed, infinite), useMyTournamentMatches
-    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), AccountPage (/account: delete), PrivacyPage (/privacy), ResetPasswordPage (/reset?token=), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
+    pages/              # HomePage (/: dashboard + feed + leaderboard widget), LeaderboardPage (/leaderboard), GroupPage (/groups/:id), NewGroupPage (/groups/new), JoinPage (/join/:code), AccountPage (/account: delete), PrivacyPage (/privacy), ResetPasswordPage (/reset?token=), PlayerPage (profile), LoginPage, SignupPage (?code= pre-fills the invite code), ResultsPage (/results, needs login),
                         # TournamentsPage (/tournaments: list + create form), TournamentPage (/tournaments/:id: draft view / standings + schedule)
-    components/         # Ladder (leaderboard as name plates, movement ▲▼), Logo, TrophyIcon, Meta, FormatTag, Panel (card, used sparingly), StatTile, ActivityFeed, LeaderboardWidget, Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
+    components/         # Ladder (leaderboard as name plates, movement ▲▼, "1000 start" line, dashed "not on the ladder yet" plate), NextRung (plates around you), LeaderboardTabs (Everyone / your groups / New group), Logo, TrophyIcon, Meta, FormatTag, Panel (card, used sparingly), StatTile, ActivityFeed, LeaderboardWidget, Avatar, ResultBadge, RatingChart, MatchHistory, MatchFilters (?opponent&format in the URL), TextField, ReportForm, ReportList, StandingsTable, TournamentMatchRow (report/confirm on the match; TBD sides, seeds), BracketView (knockout columns)
 ```
 
 ## Layering (like Controller → Service → Repository in Java)
@@ -124,7 +131,7 @@ web/
 ## Database design
 - Tables: `players`, `matches`, `rating_history`, `users` (email unique, lowercase; `password_hash`; `player_id` unique → players), `sessions` (`token_hash` = SHA-256 of the cookie token, `user_id`, `expires_at`, 30 days fixed), `password_resets` (`token_hash`, 1 hour, single use; a new link replaces old ones), `match_reports` (web-reported results, scores from the reporter's view; `status` pending → confirmed | rejected | cancelled; `match_id` set on confirm, `ON DELETE SET NULL` if the match is undone; resolved rows are kept; optional `tournament_match_id`),
   `tournaments` (`type` round_robin | knockout, `match_format`, `ranking` wins | points, `status` draft | active; "finished" is computed),
-  `tournament_players` (`seed` for knockout), `tournament_matches` (one row per slot: `round`, `position`, `player_a`/`player_b` nullable = knockout slot not decided yet; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again), `tournaments.third_place`.
+  `groups` (`invite_code` plain text, unique), `group_members` (`role` owner | member, one owner), `tournament_players` (`seed` for knockout), `tournament_matches` (one row per slot: `round`, `position`, `player_a`/`player_b` nullable = knockout slot not decided yet; `match_id` set when confirmed, `ON DELETE SET NULL` so an undone match is unplayed again), `tournaments.third_place`.
 - **Knockout bracket = a function of seeds + results** (like ratings = replay of matches): `buildKnockout` rebuilds every slot; `syncKnockout` writes the changed ones (and cancels a pending report on a slot whose players changed). Played slots never change.
 - Web players get a UUID as player id (36 chars; Discord ids are numeric), so route schemas allow ids up to 64 chars.
 - Players are identified by Discord user ID, stored as TEXT (64-bit, unsafe as a JS `number`).
@@ -165,6 +172,9 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - `recordMatch` accepts an optional `playedAt` (defaults to now). Used by the seed script, and later by an optional date on `/result`.
 - Website: API in the same process as the bot (one deploy). SQLite WAL mode so reads don't block writes. Tradeoff: if the bot crashes, the site goes down too. Acceptable here.
 - **Web accounts (W1 done, rest in TODO.md section 4):** email + password (scrypt from `node:crypto`), session token in an httpOnly cookie, invite code required to sign up. A `users` row links to a `players` row, so Discord players and web players share all stats code. Web-reported results wait in `match_reports` until the opponent confirms; confirming calls `recordMatch`, so the rating logic is unchanged.
+- **Groups (decided 2026-11-27):** one rating per player from all matches (like chess); a group's leaderboard is the overall ladder filtered
+  to its members (`AND p.id IN (SELECT … group_members …)`). Join by invite link, members only (404 for others), one owner.
+  Separate ratings per group could come later as a replay over a group's matches.
 - No rank tiers (decided 2026-11-12): the rating number is the only measure shown. Seasons = replay only the matches in a date range, no schema change needed.
 
 ## Rules for the code
@@ -174,7 +184,7 @@ FIDE-style Elo: each player has their own K-factor, so changes are not perfectly
 - Small commits, one feature at a time.
 
 ## Current status
-- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 273 tests pass.
+- Bot works: `/ping`, `/result`, `/leaderboard`, `/undo` (with replay). 288 tests pass.
 - Accounts API works (W1): sign-up with invite code, login, logout, `/api/me`, httpOnly session cookie.
 - Avatars are stored and `seed.db` provides fake data for the website.
 - API works: leaderboard, player profile, match history (cursor paging), head-to-head. WAL mode on.

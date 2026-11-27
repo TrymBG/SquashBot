@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { fetchLeaderboard } from '../api.ts'
 import { useCurrentUser } from '../auth.ts'
 import Ladder from '../components/Ladder.tsx'
+import LeaderboardTabs from '../components/LeaderboardTabs.tsx'
 
 export default function LeaderboardPage() {
   // TanStack Query runs fetchLeaderboard, caches the result under this key, and re-renders on loading/success/error.
@@ -14,8 +15,9 @@ export default function LeaderboardPage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <h1 className="type-title">Leaderboard</h1>
-      <p className="mt-1 mb-6 text-muted">Ranked by rating. Arrows show places gained or lost since last week.</p>
+      <h1 className="type-title mb-6">Leaderboard</h1>
+      <LeaderboardTabs />
+      <p className="mb-4 text-muted">Everyone, ranked by rating. Arrows show places gained or lost since last week.</p>
       {isPending && <p className="text-muted">Loading…</p>}
       {isError && <p className="text-loss">Could not load the leaderboard. Reload the page to try again.</p>}
       {players?.length === 0 && (

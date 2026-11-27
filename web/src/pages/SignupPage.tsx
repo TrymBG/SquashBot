@@ -5,6 +5,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router'
 import { useCurrentUser, useSignup } from '../auth.ts'
 import TextField from '../components/TextField.tsx'
+import { safeNext } from '../navigation.ts'
 
 export default function SignupPage() {
   const currentUser = useCurrentUser()
@@ -16,7 +17,8 @@ export default function SignupPage() {
   const [inviteCode, setInviteCode] = useState(searchParams.get('code') ?? '')
 
   // Logged in (already, or just now: a successful sign-up puts the user in the cache) → go to your profile.
-  if (currentUser) return <Navigate to={`/players/${currentUser.playerId}`} replace />
+  const next = safeNext(searchParams.get('next')) // e.g. back to a group's join link
+  if (currentUser) return <Navigate to={next ?? `/players/${currentUser.playerId}`} replace />
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -63,7 +65,7 @@ export default function SignupPage() {
       </p>
       <p className="mt-2 text-sm text-muted">
         Already have an account?{' '}
-        <Link to="/login" className="text-accent hover:underline">
+        <Link to={next ? `/login?next=${encodeURIComponent(next)}` : '/login'} className="text-accent hover:underline">
           Log in
         </Link>
       </p>
